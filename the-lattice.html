@@ -1,0 +1,3402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>The Lattice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink: #07070a;
+    --ink-2: #0c0d12;
+    --bone: #e8e6df;
+    --bone-dim: #9a978d;
+    --bone-faint: #52504a;
+    --ember: #e89a5c;        /* the one warm accent */
+    --ember-dim: #7a5432;
+    --ghost: #3a3d48;         /* near-miss color */
+    --future: #6ea8c6;        /* cool shimmer */
+    --future-dim: #2e4a5a;
+    --line: rgba(232,230,223,0.08);
+    --panel: rgba(12,13,18,0.78);
+    --panel-border: rgba(232,230,223,0.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--ink);color:var(--bone);font-family:"JetBrains Mono",ui-monospace,monospace;overflow:hidden;height:100%;}
+  body{font-size:12px;letter-spacing:0.02em;}
+  .serif{font-family:"Fraunces",Georgia,serif;font-weight:300;letter-spacing:-0.01em;}
+  canvas{display:block;position:absolute;inset:0;}
+
+  /* overlay chrome */
+  .chrome{position:fixed;inset:0;pointer-events:none;z-index:10;}
+  .chrome > *{pointer-events:auto;}
+
+  .masthead{position:absolute;top:22px;left:26px;right:26px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;}
+  .title-block{max-width:300px;}
+  .eyebrow{text-transform:uppercase;font-size:10px;letter-spacing:0.24em;color:var(--bone-faint);}
+  .title{font-family:"Fraunces",serif;font-weight:300;font-size:26px;line-height:1.02;letter-spacing:-0.02em;color:var(--bone);margin:6px 0 0;max-width:320px;}
+  .title em{font-style:italic;color:var(--ember);}
+  .subtitle{margin-top:10px;font-size:11px;line-height:1.55;color:var(--bone-dim);max-width:360px;}
+
+  .clock{text-align:right;color:var(--bone-dim);font-size:10px;line-height:1.6;}
+  .clock .now{color:var(--bone);font-size:11px;}
+  .clock .now b{color:var(--ember);font-weight:500;}
+
+  /* legend */
+  .legend{position:absolute;left:26px;bottom:26px;display:flex;flex-direction:column;gap:8px;font-size:10px;color:var(--bone-dim);max-width:300px;}
+  .legend .row{display:flex;gap:10px;align-items:center;}
+  .legend .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;}
+  .legend .dot.past{background:var(--bone);box-shadow:0 0 6px rgba(232,230,223,0.5);}
+  .legend .dot.future{background:var(--future);box-shadow:0 0 6px rgba(110,168,198,0.6);}
+  .legend .dot.ember{background:var(--ember);box-shadow:0 0 10px rgba(232,154,92,0.8);}
+  .legend .dot.ghost{background:transparent;border:1px dashed var(--ghost);box-shadow:none;}
+  .legend .hint{color:var(--bone-faint);margin-top:4px;}
+
+  /* controls bottom right */
+  .controls{position:absolute;right:26px;bottom:26px;display:flex;flex-direction:column;gap:12px;align-items:flex-end;}
+  .zoom-stack{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--panel-border);backdrop-filter:blur(8px);padding:4px;border-radius:2px;}
+  .zoom-stack button{background:transparent;border:0;color:var(--bone-dim);font-family:inherit;font-size:10px;padding:8px 14px;cursor:pointer;letter-spacing:0.18em;text-transform:uppercase;text-align:right;transition:color .2s,background .2s;border-radius:1px;}
+  .zoom-stack button:hover{color:var(--bone);}
+  .zoom-stack button.active{color:var(--ember);background:rgba(232,154,92,0.06);}
+  .zoom-stack button .n{display:inline-block;width:14px;color:var(--bone-faint);margin-right:8px;font-size:9px;}
+  .zoom-stack button.active .n{color:var(--ember);}
+
+  .togglebar{display:flex;gap:8px;background:var(--panel);border:1px solid var(--panel-border);backdrop-filter:blur(8px);padding:6px;border-radius:2px;}
+  .togglebar button{background:transparent;border:0;color:var(--bone-dim);font-family:inherit;font-size:10px;padding:6px 10px;cursor:pointer;letter-spacing:0.14em;text-transform:uppercase;border-radius:1px;transition:color .2s, background .2s;}
+  .togglebar button:hover{color:var(--bone);}
+  .togglebar button.on{color:var(--ember);background:rgba(232,154,92,0.06);}
+
+  /* Intimate panel — opens when a handshake is selected */
+  .intimate{position:absolute;top:0;right:0;bottom:0;width:min(440px,42vw);background:linear-gradient(270deg,rgba(7,7,10,0.96) 0%, rgba(7,7,10,0.88) 80%, rgba(7,7,10,0) 100%);padding:80px 34px 34px 60px;overflow-y:auto;transform:translateX(100%);transition:transform .6s cubic-bezier(.22,.61,.36,1);z-index:20;}
+  .intimate.open{transform:translateX(0);}
+  .intimate .close{position:absolute;top:28px;right:28px;background:transparent;border:0;color:var(--bone-faint);cursor:pointer;font-family:inherit;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;}
+  .intimate .close:hover{color:var(--bone);}
+  .intimate .idx{font-size:10px;letter-spacing:0.22em;color:var(--bone-faint);text-transform:uppercase;}
+  .intimate h2{font-family:"Fraunces",serif;font-weight:300;font-size:26px;line-height:1.15;letter-spacing:-0.01em;color:var(--bone);margin:8px 0 6px;}
+  .intimate h2 em{color:var(--ember);font-style:italic;}
+  .intimate .meta{font-size:10px;color:var(--bone-dim);letter-spacing:0.08em;margin-bottom:22px;border-bottom:1px solid var(--line);padding-bottom:14px;}
+  .intimate .meta span{margin-right:14px;}
+  .frames{display:flex;flex-direction:column;gap:14px;}
+  .frame{border:1px solid var(--line);padding:14px 16px;background:rgba(232,230,223,0.015);}
+  .frame h3{font-family:"JetBrains Mono",monospace;font-size:9px;font-weight:500;letter-spacing:0.26em;text-transform:uppercase;color:var(--bone-faint);margin:0 0 8px;}
+  .frame p{margin:0;font-family:"Fraunces",serif;font-weight:300;font-size:15px;line-height:1.45;color:var(--bone);}
+  .frame p em{color:var(--ember);font-style:italic;}
+  .caveat{margin-top:18px;font-size:10px;line-height:1.6;color:var(--bone-faint);border-top:1px solid var(--line);padding-top:14px;font-style:italic;}
+
+  /* Tooltip */
+  .tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--panel-border);backdrop-filter:blur(6px);padding:8px 10px;font-size:10px;color:var(--bone);max-width:240px;opacity:0;transform:translate(-50%,calc(-100% - 14px));transition:opacity .15s;z-index:15;white-space:nowrap;}
+  .tip.show{opacity:1;}
+  .tip .names{color:var(--bone);letter-spacing:0.02em;}
+  .tip .when{color:var(--bone-dim);font-size:9px;margin-top:2px;letter-spacing:0.08em;}
+  .tip.future .names{color:var(--future);}
+  .tip.ghost .names{color:var(--ghost);font-style:italic;}
+
+  /* Tweaks panel */
+  .tweaks{position:absolute;right:26px;top:100px;width:260px;background:var(--panel);border:1px solid var(--panel-border);backdrop-filter:blur(10px);padding:16px;display:none;z-index:18;font-size:10px;}
+  .tweaks.open{display:block;}
+  .tweaks h4{margin:0 0 4px;font-size:9px;letter-spacing:0.22em;color:var(--bone-faint);text-transform:uppercase;font-weight:500;}
+  .tweaks .row{margin-top:12px;}
+  .tweaks label{display:block;font-size:9px;letter-spacing:0.14em;color:var(--bone-dim);text-transform:uppercase;margin-bottom:4px;}
+  .tweaks input[type=range]{width:100%;accent-color:var(--ember);}
+  .tweaks .val{float:right;color:var(--ember);font-variant-numeric:tabular-nums;}
+  .tweaks .chips{display:flex;gap:4px;flex-wrap:wrap;}
+  .tweaks .chip{background:transparent;border:1px solid var(--line);color:var(--bone-dim);padding:4px 8px;font-size:9px;font-family:inherit;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border-radius:1px;}
+  .tweaks .chip.on{border-color:var(--ember);color:var(--ember);}
+
+  /* small text under the sphere */
+  .caption{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);font-size:10px;color:var(--bone-faint);letter-spacing:0.18em;text-transform:uppercase;text-align:center;pointer-events:none;}
+
+  /* lens switcher */
+  .lens-switch{position:absolute;left:50%;top:22px;transform:translateX(-50%);display:flex;gap:2px;background:var(--panel);border:1px solid var(--panel-border);backdrop-filter:blur(10px);padding:4px;border-radius:2px;z-index:14;}
+  .lens-switch button{background:transparent;border:0;color:var(--bone-dim);font-family:inherit;font-size:10px;padding:8px 14px;cursor:pointer;letter-spacing:0.2em;text-transform:uppercase;border-radius:1px;display:flex;align-items:center;gap:8px;transition:color .2s, background .2s;}
+  .lens-switch button:hover{color:var(--bone);}
+  .lens-switch button.active{color:var(--ember);background:rgba(232,154,92,0.08);}
+  .lens-switch .n{color:var(--bone-faint);font-size:9px;}
+  .lens-switch button.active .n{color:var(--ember);}
+  .lens-switch .sep{width:1px;background:var(--panel-border);margin:4px 2px;}
+
+  /* canvas layering for lenses */
+  canvas.lens{display:block;position:absolute;inset:0;opacity:0;transition:opacity .7s ease;pointer-events:none;}
+  canvas.lens.active{opacity:1;pointer-events:auto;}
+  canvas#sphere.active{opacity:1;pointer-events:auto;}
+  canvas#sphere:not(.active){opacity:0;pointer-events:none;transition:opacity .7s ease;}
+
+  /* lens subtitle swap */
+  .sub-sphere, .sub-chord, .sub-river, .sub-rhyme, .sub-song, .sub-undefined{display:none;}
+  body.lens-sphere .sub-sphere, body.lens-chord .sub-chord, body.lens-river .sub-river, body.lens-rhyme .sub-rhyme, body.lens-song .sub-song, body.lens-undefined .sub-undefined{display:block;}
+
+  /* lens-specific chrome visibility */
+  body:not(.lens-sphere) .zoom-stack{display:none;}
+  body.lens-rhyme .legend, body.lens-river .legend, body.lens-song .legend, body.lens-undefined .legend{display:none;}
+  body.lens-song .clock, body.lens-undefined .clock{display:none;}
+  body.lens-song .title-block, body.lens-undefined .title-block{display:none;}
+  /* River scrubber */
+  .scrubber{position:absolute;left:60px;right:60px;bottom:90px;height:40px;display:none;pointer-events:auto;}
+  body.lens-river .scrubber{display:block;}
+  .scrubber .track{position:absolute;left:0;right:0;top:19px;height:1px;background:var(--line);}
+  .scrubber .now{position:absolute;top:0;bottom:0;width:1px;background:var(--ember);box-shadow:0 0 6px var(--ember);}
+  .scrubber .year{position:absolute;top:-22px;font-size:9px;color:var(--bone-faint);letter-spacing:0.14em;}
+  .scrubber .year.left{left:0;}
+  .scrubber .year.right{right:0;}
+  .scrubber .year.now{left:50%;transform:translateX(-50%);color:var(--ember);}
+
+  /* Song playlist panel (HTML overlay, only on Song lens) */
+  .song-playlist{
+    position:absolute; top:68px; right:26px;
+    width:300px; max-height:calc(100vh - 160px);
+    background:rgba(8,9,12,0.78); border:1px solid var(--panel-border);
+    backdrop-filter:blur(12px);
+    display:none; flex-direction:column;
+    font-family:"JetBrains Mono", monospace;
+    z-index:6;
+  }
+  body.lens-song .song-playlist{display:flex;}
+  .song-playlist .sp-head{
+    padding:10px 14px 8px; border-bottom:1px solid var(--panel-border);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .song-playlist .sp-title{
+    font-size:9px; letter-spacing:0.24em; text-transform:uppercase; color:var(--bone-faint);
+  }
+  .song-playlist .sp-count{font-size:9px; color:var(--bone-faint); letter-spacing:0.1em;}
+  .song-playlist .sp-search{
+    padding:8px 14px; border-bottom:1px solid var(--panel-border);
+  }
+  .song-playlist .sp-search input{
+    width:100%; background:transparent; border:0; outline:none;
+    color:var(--bone); font-family:inherit; font-size:11px; letter-spacing:0.04em;
+    padding:4px 0;
+  }
+  .song-playlist .sp-search input::placeholder{color:var(--bone-faint);}
+  .song-playlist .sp-list{
+    overflow-y:auto; flex:1; min-height:0;
+    padding:4px 0;
+    scrollbar-width:thin; scrollbar-color:rgba(232,154,92,0.3) transparent;
+  }
+  .song-playlist .sp-list::-webkit-scrollbar{width:6px;}
+  .song-playlist .sp-list::-webkit-scrollbar-thumb{background:rgba(232,154,92,0.25); border-radius:3px;}
+  .song-playlist .sp-row{
+    padding:6px 14px; font-family:"Fraunces",serif; font-size:12px;
+    color:var(--bone-dim); cursor:pointer; line-height:1.2;
+    display:flex; align-items:baseline; gap:10px;
+    border-left:2px solid transparent;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .song-playlist .sp-row:hover{background:rgba(255,255,255,0.03); color:var(--bone);}
+  .song-playlist .sp-row.active{
+    color:var(--ember); border-left-color:var(--ember);
+    background:rgba(232,154,92,0.06);
+  }
+  .song-playlist .sp-row .sp-num{
+    font-family:"JetBrains Mono", monospace; font-size:9px;
+    color:var(--bone-faint); letter-spacing:0.1em;
+    min-width:32px; flex-shrink:0;
+  }
+  .song-playlist .sp-row.active .sp-num{color:var(--ember);}
+  .song-playlist .sp-foot{
+    padding:8px 14px; border-top:1px solid var(--panel-border);
+    font-size:9px; color:var(--bone-faint); letter-spacing:0.1em;
+    display:flex; justify-content:space-between; gap:10px;
+  }
+  .song-playlist .sp-foot button{
+    background:transparent; border:0; color:var(--bone-faint);
+    font-family:inherit; font-size:9px; letter-spacing:0.18em; text-transform:uppercase;
+    cursor:pointer; padding:0;
+  }
+  .song-playlist .sp-foot button:hover{color:var(--ember);}
+  @media (max-width: 900px){
+    .song-playlist{width:240px; top:70px; right:12px;}
+  }
+
+  /* Intro veil */
+  .veil{position:absolute;inset:0;background:var(--ink);z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:40px;transition:opacity 1.2s ease;}
+  .veil.hidden{opacity:0;pointer-events:none;}
+  .veil .mark{width:48px;height:48px;border:1px solid var(--bone-faint);border-radius:50%;position:relative;}
+  .veil .mark:before{content:"";position:absolute;inset:14px;border-radius:50%;background:var(--ember);box-shadow:0 0 20px var(--ember);animation:pulse 2.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{transform:scale(.6);opacity:.3}50%{transform:scale(1);opacity:1}}
+  .veil .q{font-family:"Fraunces",serif;font-weight:300;font-size:22px;line-height:1.35;max-width:500px;color:var(--bone);}
+  .veil .q em{color:var(--ember);font-style:italic;}
+  .veil .enter{margin-top:8px;background:transparent;border:1px solid var(--panel-border);color:var(--bone-dim);font-family:inherit;font-size:10px;letter-spacing:0.24em;padding:10px 20px;text-transform:uppercase;cursor:pointer;transition:color .2s, border-color .2s;}
+  .veil .enter:hover{color:var(--ember);border-color:var(--ember);}
+
+  @media (max-width: 720px){
+    .title{font-size:24px;}
+    .subtitle{display:none;}
+    .intimate{width:100%;padding:80px 22px 22px;}
+    .tweaks{width:calc(100% - 52px);}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<canvas id="sphere" class="active"></canvas>
+<canvas id="chord" class="lens"></canvas>
+<canvas id="river" class="lens"></canvas>
+<canvas id="rhyme" class="lens"></canvas>
+<canvas id="song" class="lens"></canvas>
+<canvas id="undefined-lens" class="lens"></canvas>
+
+<!-- Song playlist overlay -->
+<div class="song-playlist" id="song-playlist" aria-label="Melody playlist">
+  <div class="sp-head">
+    <div class="sp-title">Playlist</div>
+    <div class="sp-count" id="sp-count">0 / 0</div>
+  </div>
+  <div class="sp-search">
+    <input id="sp-search" type="text" placeholder="search melodies…" spellcheck="false" autocomplete="off">
+  </div>
+  <div class="sp-list" id="sp-list"></div>
+  <div class="sp-foot">
+    <span id="sp-now">—</span>
+    <button id="sp-random" title="Random track">↯ shuffle</button>
+  </div>
+</div>
+
+<!-- River scrubber -->
+<div class="scrubber" id="scrubber">
+  <div class="track"></div>
+  <div class="now" id="river-now"></div>
+  <span class="year left">−2000 BCE</span>
+  <span class="year now" id="river-nowyear">2026</span>
+  <span class="year right">2200 CE</span>
+</div>
+
+<!-- Lens switcher -->
+<div class="lens-switch" id="lens-switch">
+  <button data-lens="sphere" class="active"><span class="n">01</span>Sphere</button>
+  <button data-lens="chord"><span class="n">02</span>Chord</button>
+  <button data-lens="river"><span class="n">03</span>River</button>
+  <button data-lens="rhyme"><span class="n">04</span>Rhyme</button>
+  <button data-lens="song"><span class="n">05</span>Song</button>
+  <button data-lens="undefined"><span class="n">06</span>Undefined</button>
+</div>
+
+<!-- Veil / intro -->
+<div class="veil" id="veil">
+  <div class="mark"></div>
+  <div class="q">Every handshake that has ever happened, is happening, or <em>might happen</em>.</div>
+  <div style="font-size:10px;color:var(--bone-faint);letter-spacing:0.22em;text-transform:uppercase;">an instrument for looking</div>
+  <button class="enter" id="enter">Enter the lattice</button>
+</div>
+
+<!-- Tooltip -->
+<div class="tip" id="tip"></div>
+
+<!-- Chrome -->
+<div class="chrome">
+  <div class="masthead">
+    <div class="title-block">
+      <div class="eyebrow">The Lattice · v0.1</div>
+      <h1 class="title">Every <em>handshake</em>, past &middot; present &middot; future.</h1>
+      <div class="subtitle sub-sphere">Latitude is time. Longitude is the kind of contact. The equator glows with <em style="color:var(--ember);font-style:normal">now</em>. Hover a pulse. Zoom in. Listen for the rhymes.</div>
+      <div class="subtitle sub-chord">The ring is the taxonomy of contact. Each ribbon is a handshake between two domains. Watch which kinds of contact feed which — alliances becoming intimacies, machines catalyzing creations. The <em style="color:var(--ember);font-style:normal">grammar</em> of how we touch.</div>
+      <div class="subtitle sub-river">Time flows left to right. The braid thickens where contact is dense and thins through plagues, dark ages, quiet centuries. Scrub the equator. This is the <em style="color:var(--ember);font-style:normal">shape of history</em> as a single living stream.</div>
+      <div class="subtitle sub-rhyme">Handshakes across centuries placed next to each other by structural shape — same asymmetry, same domain, same weight. A merchant in 1340 and a founder in 2019 are, structurally, the same event.</div>
+      <div class="subtitle sub-song">A melody is a sequence of handshakes between notes. This one is yours. Each beat summons a handshake from the sphere. The waveform is a thread through the whole lattice, drawn once and listened to forever.</div>
+      <div class="subtitle sub-undefined">A dark field where handshakes that never happened begin to flicker. Pairings the dataset never asserted. These are not predictions. They are permissions. Hover to hold one still; click to burn it into the lattice.</div>ttice; the spectrogram is its breath.</div>
+    </div>
+    <div class="clock">
+      <div class="now">NOW · <b id="nowclock">—</b></div>
+      <div>pulses rendered · <span id="pulseCount">0</span></div>
+      <div>near-misses · <span id="ghostCount">0</span></div>
+      <div>lattice density · <span id="density">—</span></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="row"><span class="dot past"></span> past · settled, observed</div>
+    <div class="row"><span class="dot ember"></span> now · the living equator</div>
+    <div class="row"><span class="dot future"></span> future · probabilistic shimmer</div>
+    <div class="row"><span class="dot ghost"></span> near-miss · the anti-handshake</div>
+    <div class="hint">drag to rotate · scroll to zoom · click a pulse</div>
+  </div>
+
+  <div class="controls">
+    <div class="togglebar">
+      <button id="btn-ghosts" class="on">near-misses</button>
+      <button id="btn-sound">sound</button>
+      <button id="btn-tweaks">tweaks</button>
+    </div>
+    <div class="zoom-stack">
+      <button data-zoom="cosmic" class="active"><span class="n">01</span>Cosmic</button>
+      <button data-zoom="regional"><span class="n">02</span>Regional</button>
+      <button data-zoom="intimate"><span class="n">03</span>Intimate</button>
+    </div>
+  </div>
+
+  <div class="tweaks" id="tweaks">
+    <h4>Tweaks</h4>
+    <div class="row"><label>rotation speed <span class="val" id="v-rot">0.04</span></label>
+      <input type="range" id="t-rot" min="0" max="0.20" step="0.005" value="0.04" /></div>
+    <div class="row"><label>pulse density <span class="val" id="v-density">1.0×</span></label>
+      <input type="range" id="t-density" min="0.2" max="2.5" step="0.1" value="1.0" /></div>
+    <div class="row"><label>future shimmer <span class="val" id="v-shimmer">0.6</span></label>
+      <input type="range" id="t-shimmer" min="0" max="1" step="0.05" value="0.6" /></div>
+    <div class="row"><label>ambient motion</label>
+      <div class="chips">
+        <button class="chip on" data-motion="breath">breathing</button>
+        <button class="chip" data-motion="still">still</button>
+      </div></div>
+    <div class="row"><label>palette</label>
+      <div class="chips">
+        <button class="chip on" data-pal="ember">ember</button>
+        <button class="chip" data-pal="ice">ice</button>
+        <button class="chip" data-pal="bone">bone</button>
+      </div></div>
+  </div>
+</div>
+
+<div class="caption" id="caption">drag to rotate the world</div>
+
+<!-- Intimate panel -->
+<aside class="intimate" id="intimate">
+  <button class="close" id="close-intimate">close ·</button>
+  <div class="idx" id="int-idx">HANDSHAKE 00000</div>
+  <h2 id="int-title">—</h2>
+  <div class="meta" id="int-meta">—</div>
+  <div class="frames" id="int-frames"></div>
+  <div class="caveat">
+    Analysis is partial. Every handshake has an irreducible core — the actual felt moment between two beings — that no measurement can reach. What you see here is the shape of the thing, not the thing itself.
+  </div>
+</aside>
+
+<!-- Tweak persistence block -->
+<script>
+  window.TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "rotationSpeed": 0.005,
+    "pulseDensity": 0.2,
+    "futureShimmer": 0.8,
+    "motion": "still",
+    "palette": "ice",
+    "ghostsOn": true,
+    "soundOn": false
+  }/*EDITMODE-END*/;
+</script>
+
+<script>
+/* The Lattice — dataset
+ * A synthetic but plausible set of handshakes spanning ~4000 years.
+ * Each handshake is a relationship event between two nodes at a moment.
+ * Domains map to longitude (0..360). Time maps to latitude.
+ */
+
+(function(){
+  "use strict";
+
+  // ---------- Domains (longitudinal bands) ----------
+  // 8 domains, evenly spaced. Each is a "meridian" on the sphere.
+  const DOMAINS = [
+    { key:"greeting",    label:"Greeting",         hue: 0  }, // pure hello
+    { key:"alliance",    label:"Alliance",         hue: 45 }, // treaties, contracts
+    { key:"intimacy",    label:"Intimacy",         hue: 90 }, // love, kin
+    { key:"exchange",    label:"Exchange",         hue: 135}, // trade, gift
+    { key:"creation",    label:"Creation",         hue: 180}, // collaborator meets collaborator
+    { key:"machine",     label:"Machine",          hue: 225}, // tcp, api, protocol
+    { key:"farewell",    label:"Farewell",         hue: 270}, // goodbye, last meetings
+    { key:"crossing",    label:"Crossing",         hue: 315}, // strangers, brief encounters
+  ];
+
+  // ---------- Time range ----------
+  // Latitude mapping: -80° (past-most) → +80° (future-most)
+  // Now = 0°. We go ~-2000 BCE to ~+2200 CE.
+  const NOW_YEAR = 2026;
+  const MIN_YEAR = -2000;
+  const MAX_YEAR = 2200;
+
+  function yearToLat(year){
+    // compress past more than future (past is denser)
+    if (year <= NOW_YEAR){
+      const t = (NOW_YEAR - year) / (NOW_YEAR - MIN_YEAR); // 0..1
+      // ease so distant past crowds near pole
+      return -80 * Math.pow(t, 0.75);
+    } else {
+      const t = (year - NOW_YEAR) / (MAX_YEAR - NOW_YEAR);
+      return 80 * Math.pow(t, 0.9);
+    }
+  }
+
+  function domainToLon(domainKey, jitter){
+    const d = DOMAINS.find(x=>x.key===domainKey);
+    const base = d.hue;
+    return base + (jitter ?? 0);
+  }
+
+  // ---------- Seed handshakes — hand-authored anchors ----------
+  // These are the "bright spots" — plausible, archetypal, with real texture.
+  const ANCHORS = [
+    // --- deep past
+    { year:-1750, a:"Hammurabi", b:"a scribe of Susa", domain:"alliance", weight:0.9,
+      note:"A codified law passes from ruler to witness. The handshake is an oath.",
+      frames:{
+        transactional:"A tablet, a seal, a name pressed into clay.",
+        relational:"Sovereign and servant. The servant outlives the law.",
+        narrative:"The first moment a promise could be held in the hand.",
+        systemic:"A new kind of handshake is invented: the one that binds strangers.",
+        emotional:"Pride on one side. On the other: the slow weight of what has just become permanent."
+      }},
+    { year:-490, a:"Pheidippides", b:"the Athenian assembly", domain:"greeting", weight:0.85,
+      note:"He arrives. He says one word. He dies.",
+      frames:{
+        transactional:"News of victory, delivered at the cost of breath.",
+        relational:"One man to a city. Asymmetric past bearing.",
+        narrative:"The shape of every courier that will follow for 2,500 years.",
+        systemic:"The first hello-world where the medium was a body.",
+        emotional:"Triumph, exhaustion, release — compressed into a single syllable."
+      }},
+    { year:1271, a:"Marco Polo", b:"Kublai Khan", domain:"crossing", weight:0.7,
+      note:"A Venetian boy bows before an empire he did not invent words for.",
+      frames:{
+        transactional:"Curiosity traded for safe passage.",
+        relational:"Two worlds agreeing, briefly, to share a room.",
+        narrative:"Travel writing is born in the gap between their languages.",
+        systemic:"A hairline fracture opens in the wall between East and West.",
+        emotional:"Wonder, on both sides, quietly hidden under protocol."
+      }},
+    { year:1492, a:"Taíno elder", b:"Columbus's landing party", domain:"crossing", weight:0.95,
+      note:"A handshake whose consequences neither party could see.",
+      frames:{
+        transactional:"Gifts exchanged. The asymmetry is in what will follow.",
+        relational:"Hosts and guests, for about an hour.",
+        narrative:"A world ends. Another begins. Neither knows yet.",
+        systemic:"The densest load-bearing handshake in this hemisphere's lattice.",
+        emotional:"Caution, curiosity, courtesy. No fear yet. The fear comes later."
+      }},
+    { year:1609, a:"Galileo", b:"the night sky", domain:"creation", weight:0.6,
+      note:"A lens points up for the first time with intent.",
+      frames:{
+        transactional:"Photons, four hundred years old, meet a glass surface ground by hand.",
+        relational:"One of the rare handshakes between a mind and a universe.",
+        narrative:"The moment the telescope became a telescope.",
+        systemic:"Reshapes every future handshake between humans and the cosmos.",
+        emotional:"Something like falling. Something like waking up."
+      }},
+    { year:1776, a:"Jefferson", b:"Franklin", domain:"creation", weight:0.7,
+      note:"Two men revising each other's sentences.",
+      frames:{
+        transactional:"A paragraph. A comma. A radical idea softened by an elder hand.",
+        relational:"Mentor and insurgent, quietly respectful.",
+        narrative:"Half of a nation's voice is shaped in a room that no longer exists.",
+        systemic:"A handshake that will echo in every legal document for centuries.",
+        emotional:"Impatience on one side. Warmth on the other. Both hiding exhaustion."
+      }},
+    { year:1876, a:"Alexander Graham Bell", b:"Thomas Watson", domain:"machine", weight:0.85,
+      note:"The first handshake across a wire.",
+      frames:{
+        transactional:"Seven words. Transmitted. Received.",
+        relational:"Inventor and assistant, suddenly equal in the instant of the transmission.",
+        narrative:"Distance begins its long slow collapse.",
+        systemic:"Every phone call since rhymes with this one.",
+        emotional:"Disbelief, then joy, then the urge to do it again immediately."
+      }},
+    { year:1903, a:"Wilbur Wright", b:"Orville Wright", domain:"creation", weight:0.7,
+      note:"A brotherly hand on a shoulder before 12 seconds of flight.",
+      frames:{
+        transactional:"Trust passed silently. One brother rides. The other runs alongside.",
+        relational:"The densest sibling handshake in aviation history.",
+        narrative:"Every future flight is underwritten by this one gesture.",
+        systemic:"Two bicycle makers become a whole industry.",
+        emotional:"A shared silence that neither would be able to describe later."
+      }},
+    { year:1945, a:"Soviet soldier", b:"American soldier", domain:"alliance", weight:0.8,
+      note:"At the Elbe River. Laughing. Exhausted. Unable to speak each other's language.",
+      frames:{
+        transactional:"Cigarettes, photos, a bottle.",
+        relational:"Two armies touching for the first time through two men.",
+        narrative:"The war in Europe has a gesture now. This is it.",
+        systemic:"A seam in the map that will harden into a curtain.",
+        emotional:"Joy on the surface. Something colder underneath, that neither man has a name for yet."
+      }},
+    { year:1969, a:"Neil Armstrong", b:"lunar regolith", domain:"crossing", weight:0.9,
+      note:"A boot meets dust that has not been touched in 4.5 billion years.",
+      frames:{
+        transactional:"A footprint. A sample bag. A transmission home.",
+        relational:"A species reaching out of its crib.",
+        narrative:"For one hour, every television on Earth was the same television.",
+        systemic:"The handshake that proved the lattice extends beyond this planet.",
+        emotional:"Calm. Almost clerical. The weight of it arrives later, in other people."
+      }},
+    { year:1969, a:"UCLA host", b:"SRI host", domain:"machine", weight:0.88,
+      note:"LOGIN — and the system crashes after two letters. LO. The first word the internet ever said.",
+      frames:{
+        transactional:"Two letters. A crash. A retry.",
+        relational:"Two machines that did not know each other's names.",
+        narrative:"Every packet since has been a descendant of these two characters.",
+        systemic:"The founding handshake of the network age.",
+        emotional:"Not felt by the machines. Felt, faintly, by the humans watching."
+      }},
+    { year:1989, a:"a man at Checkpoint Charlie", b:"a woman on the other side", domain:"farewell", weight:0.7,
+      note:"A goodbye disguised as a hello. Or the reverse. History hasn't decided.",
+      frames:{
+        transactional:"Nothing, materially. Everything, otherwise.",
+        relational:"Strangers to each other. Kin to the moment.",
+        narrative:"An accidental icon of a wall that was, itself, an accident.",
+        systemic:"A lattice-wide ripple: thousands of deferred handshakes suddenly possible.",
+        emotional:"Tears on both sides before either of them understood why."
+      }},
+    { year:1991, a:"Tim Berners-Lee", b:"the first server he talked to", domain:"machine", weight:0.8,
+      note:"A document requests itself into existence.",
+      frames:{
+        transactional:"An HTTP GET, replied to in milliseconds.",
+        relational:"Author and audience fused into the same moment.",
+        narrative:"The quietest revolution of the century begins with a 200 OK.",
+        systemic:"Makes possible every hello-world that comes after.",
+        emotional:"Private elation. He tells almost no one for weeks."
+      }},
+
+    // --- present-ish
+    { year:2008, a:"a user", b:"their first iPhone", domain:"machine", weight:0.55,
+      note:"A glass slab meets a thumb. Both are changed.",
+      frames:{
+        transactional:"A swipe. An animation. A small delight.",
+        relational:"Intimate from the first second. This one is different.",
+        narrative:"The pocket becomes a portal.",
+        systemic:"Billions of handshakes per second will now flow through glass.",
+        emotional:"A quiet thrill that most users can't articulate, but never forget."
+      }},
+    { year:2015, a:"a stranger", b:"another stranger", domain:"intimacy", weight:0.45,
+      note:"A photo swiped right. A message. A coffee. A life.",
+      frames:{
+        transactional:"An algorithm, a notification, a decision made in 0.3s.",
+        relational:"The handshake that almost didn't happen, happening anyway.",
+        narrative:"One of ten million such stories happening this year.",
+        systemic:"A new way the lattice can surprise itself.",
+        emotional:"Nervousness shading into something like relief."
+      }},
+    { year:2020, a:"a grandmother", b:"her grandson", domain:"farewell", weight:0.75,
+      note:"A window. A phone. Gloved hands against glass.",
+      frames:{
+        transactional:"No touch. A photograph, later. A voicemail saved.",
+        relational:"The most asymmetric farewell: one knows, one will not remember.",
+        narrative:"Millions of families learn a new shape of goodbye this year.",
+        systemic:"The lattice thins in a million small places at once.",
+        emotional:"Grief, deferred. It arrives in the grocery store, months later."
+      }},
+    { year:2022, a:"a person", b:"a model", domain:"machine", weight:0.9,
+      note:"The first time a human asks a language model a real question and trusts the answer.",
+      frames:{
+        transactional:"A prompt. A completion. A pause before the second question.",
+        relational:"A new kind of node enters the lattice. It will be controversial.",
+        narrative:"Every future handshake between humans and models is set up here.",
+        systemic:"The lattice grows a new limb. Not everyone agrees it belongs.",
+        emotional:"Unease and delight, in equal parts, within the same minute."
+      }},
+
+    // --- the future
+    { year:2028, a:"two researchers", b:"(different continents)", domain:"creation", weight:0.5, future:true,
+      note:"A paper co-authored by people who will not meet in person until the funeral of a third.",
+      frames:{
+        transactional:"Shared doc. 847 suggestions accepted. 12 declined.",
+        relational:"Closer than most marriages. Never in the same room.",
+        narrative:"A new shape of collaboration that the 20th century did not have a word for.",
+        systemic:"The latency of genius drops to near zero.",
+        emotional:"Affection, through latex gloves of distance. Real, though."
+      }},
+    { year:2034, a:"a city", b:"its own model of itself", domain:"machine", weight:0.6, future:true,
+      note:"A municipal digital twin greets its citizens at 6:00 AM and asks them how they slept.",
+      frames:{
+        transactional:"Anonymized aggregates in, adjusted traffic light timings out.",
+        relational:"A city becomes a thing you can talk to. Or: a thing that talks to you.",
+        narrative:"The civic handshake is no longer between neighbors.",
+        systemic:"A whole new longitude opens on the sphere.",
+        emotional:"Most citizens don't notice. The few who do are unsettled."
+      }},
+    { year:2041, a:"a person", b:"a memory of a person", domain:"intimacy", weight:0.65, future:true,
+      note:"An AI built on letters, videos, and voicemails. The question of whether it counts as a handshake will not be settled.",
+      frames:{
+        transactional:"A conversation that should not be possible.",
+        relational:"Comfort, for the living. Nothing, for the dead.",
+        narrative:"Grief becomes a product category. This is a moral problem.",
+        systemic:"The future hemisphere of the lattice now includes the past in a new way.",
+        emotional:"Solace tangled with something like trespass."
+      }},
+    { year:2067, a:"the first crew", b:"Martian ground", domain:"crossing", weight:0.75, future:true,
+      note:"A boot meets dust that has not been touched by any life, probably.",
+      frames:{
+        transactional:"A photograph, transmitted with an 8-minute delay.",
+        relational:"A species reaching, again. The lattice extends across the dark.",
+        narrative:"A rhyme with 1969, audible across 98 years.",
+        systemic:"A new band of density begins to form at the southern latitudes.",
+        emotional:"Calm, again. The thrill arrives back home, hours later."
+      }},
+    { year:2102, a:"a child", b:"a whale", domain:"crossing", weight:0.5, future:true,
+      note:"The first translated conversation between species, brokered by a model neither of them understands.",
+      frames:{
+        transactional:"Three sentences. Then silence. Then three more.",
+        relational:"Two minds making room for each other without sharing a medium.",
+        narrative:"Humans discover they have been talking for millennia, and nobody answered.",
+        systemic:"A new domain — interspecies — blooms on the sphere.",
+        emotional:"Shame, wonder, humility. All three at once."
+      }},
+    { year:2160, a:"a descendant", b:"an ancestor's archive", domain:"farewell", weight:0.4, future:true,
+      note:"Someone reads this sentence, in a house that does not exist yet.",
+      frames:{
+        transactional:"Words in; recognition out.",
+        relational:"A handshake across the grain of time, offered without expectation of reply.",
+        narrative:"The archive was always a kind of message in a bottle.",
+        systemic:"Every handshake you make is partly with people you will never meet.",
+        emotional:"Tenderness. The strange tenderness we feel for the dead."
+      }},
+  ];
+
+  // ---------- The conversation itself ----------
+  // A tiny cluster representing this exchange, placed at the equator.
+  const SELF = [
+    { year:2026, a:"the user", b:"the model", domain:"creation", weight:0.85, self:true,
+      note:"This conversation. The one you're inside of.",
+      frames:{
+        transactional:"Questions, answers, revisions. A design, eventually.",
+        relational:"An asymmetric but genuine collaboration. Neither fully human, neither fully not.",
+        narrative:"The point at which the lattice learned to render itself.",
+        systemic:"A new class of handshake — one where the tool imagines the view from above.",
+        emotional:"Curiosity on one side. Something adjacent to curiosity on the other."
+      }},
+    { year:2026, a:"the user", b:"an idea", domain:"creation", weight:0.55, self:true,
+      note:"The moment the sphere became possible to imagine.",
+      frames:{
+        transactional:"A sentence said aloud. A nod.",
+        relational:"Author and thought, meeting each other.",
+        narrative:"Every work begins with this handshake. Nobody remembers it later.",
+        systemic:"The most common handshake in creative history. Almost invisible.",
+        emotional:"A small electrical feeling behind the eyes."
+      }},
+    { year:2026, a:"you", b:"the lattice", domain:"crossing", weight:0.75, self:true,
+      note:"Right now. You are here. This is a pulse.",
+      frames:{
+        transactional:"A screen, a pair of eyes, about thirty seconds of attention.",
+        relational:"Viewer and artifact. You are changing it by looking.",
+        narrative:"This handshake is indistinguishable, from the sphere's point of view, from any other.",
+        systemic:"Participation, not observation. The lattice has no audience.",
+        emotional:"Yours to name."
+      }},
+  ];
+
+  // ---------- Procedural fill ----------
+  // We need thousands of background pulses so the sphere feels dense.
+  // These are unnamed — they appear on hover as archetypes ("a merchant / a stranger").
+  const ARCHETYPES = {
+    greeting:   ["a traveler / an innkeeper","two soldiers / at a checkpoint","a clerk / a customer","two neighbors / in a stairwell","a host / a guest","two children / on a playground"],
+    alliance:   ["two diplomats","a guild / an apprentice","a monarch / an advisor","two captains","a founder / an investor","two clans"],
+    intimacy:   ["two lovers","a parent / a newborn","two old friends","a sibling / a sibling","two pen pals","a grandchild / a grandparent"],
+    exchange:   ["a merchant / a buyer","a farmer / a miller","a fisher / a cook","two traders","a maker / a client","a lender / a borrower"],
+    creation:   ["two collaborators","a teacher / a student","an editor / a writer","two musicians","a mentor / an apprentice","a director / an actor"],
+    machine:    ["a client / a server","two protocols","a device / its owner","two satellites","an app / a user","a sensor / a controller"],
+    farewell:   ["a friend / a friend","a patient / a doctor","two colleagues","a lover / a lover","a traveler / a home","a guard / a prisoner"],
+    crossing:   ["two strangers","a passerby / a passerby","two travelers","a local / a visitor","two commuters","a seeker / a stranger"],
+  };
+
+  // Seeded RNG so the dataset is stable across reloads.
+  function mulberry32(seed){
+    return function(){
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const rand = mulberry32(20260418);
+
+  function randomArchetype(domainKey){
+    const list = ARCHETYPES[domainKey];
+    return list[Math.floor(rand()*list.length)];
+  }
+
+  // Distribute procedurally: past denser, future sparser
+  function makeProcedural(count){
+    const out = [];
+    for (let i=0;i<count;i++){
+      // bias toward past: ~65% past, 35% future
+      const isPast = rand() < 0.66;
+      let year;
+      if (isPast){
+        // log-ish skew so recent past is denser
+        const t = Math.pow(rand(), 1.8);
+        year = Math.round(NOW_YEAR - t * (NOW_YEAR - MIN_YEAR));
+      } else {
+        const t = Math.pow(rand(), 2.2);
+        year = Math.round(NOW_YEAR + 1 + t * (MAX_YEAR - NOW_YEAR));
+      }
+      const dkey = DOMAINS[Math.floor(rand()*DOMAINS.length)].key;
+      const arc = randomArchetype(dkey);
+      const parts = arc.split(" / ");
+      out.push({
+        year, a: parts[0], b: parts[1] || parts[0],
+        domain: dkey,
+        weight: 0.15 + rand()*0.3,
+        future: year > NOW_YEAR,
+        procedural:true,
+        frames: null,
+      });
+    }
+    return out;
+  }
+
+  // ---------- Near-misses (ghost handshakes) ----------
+  // These are handshakes that almost happened. Rendered as hollow dashed rings.
+  const NEAR_MISSES = [
+    { year:1884, a:"Nikola Tesla", b:"Thomas Edison", domain:"creation", note:"Worked in the same building. Could not speak to each other.", ghost:true },
+    { year:1919, a:"a physicist", b:"his future collaborator", domain:"creation", note:"Passed each other on a train platform in Vienna. Neither looked up.", ghost:true },
+    { year:1963, a:"two poets", b:"at the same reading", domain:"creation", note:"She left early. He arrived late.", ghost:true },
+    { year:1989, a:"a dissident", b:"a journalist", domain:"alliance", note:"The letter was never delivered.", ghost:true },
+    { year:2001, a:"a passenger", b:"a different flight", domain:"crossing", note:"He changed his ticket at the gate.", ghost:true },
+    { year:2015, a:"two strangers", b:"on the same app", domain:"intimacy", note:"Matched. Neither messaged. The lattice held its breath.", ghost:true },
+    { year:2020, a:"a founder", b:"a collaborator", domain:"creation", note:"Email marked as spam.", ghost:true },
+    { year:2024, a:"two relatives", b:"separated by a war", domain:"intimacy", note:"The call dropped. Neither tried again.", ghost:true },
+    { year:-400, a:"a philosopher", b:"a mathematician", domain:"creation", note:"The scroll burned in the fire.", ghost:true },
+    { year:1605, a:"a playwright", b:"an astronomer", domain:"creation", note:"A letter drafted, never sent.", ghost:true },
+    { year:1918, a:"a soldier", b:"his fiancée", domain:"intimacy", note:"The armistice came one hour too late.", ghost:true },
+    { year:2050, a:"two researchers", b:"on the same problem", domain:"creation", note:"The grant went to one. The other pivoted. They would have solved it together.", ghost:true, future:true },
+    { year:2071, a:"a signal", b:"a listener", domain:"machine", note:"We weren't pointed at the right part of the sky.", ghost:true, future:true },
+    { year:2145, a:"a descendant", b:"a letter", domain:"farewell", note:"The cloud that stored it was deprecated.", ghost:true, future:true },
+  ];
+
+  // ---------- Build the full dataset ----------
+  const PROCEDURAL = makeProcedural(1600);
+
+  // Each entry gets normalized coords
+  function normalize(list){
+    return list.map((h, i)=>{
+      // add some longitudinal jitter within a domain band (±14°)
+      const jitter = (rand() - 0.5) * 28;
+      return {
+        ...h,
+        id: i,
+        lat: yearToLat(h.year),
+        lon: domainToLon(h.domain, jitter),
+        // random "phase" for pulse timing
+        phase: rand(),
+      };
+    });
+  }
+
+  const allAnchors = normalize(ANCHORS).map(h=>({...h, anchor:true}));
+  const allSelf = normalize(SELF).map(h=>({...h, self:true, weight: h.weight ?? 0.7}));
+  const allProcedural = normalize(PROCEDURAL);
+  const allGhosts = normalize(NEAR_MISSES);
+
+  // Unified id
+  let idc = 0;
+  [...allAnchors, ...allSelf, ...allProcedural, ...allGhosts].forEach(h => { h.id = idc++; });
+
+  window.LATTICE_DATA = {
+    DOMAINS,
+    NOW_YEAR, MIN_YEAR, MAX_YEAR,
+    yearToLat, domainToLon,
+    anchors: allAnchors,
+    self: allSelf,
+    procedural: allProcedural,
+    ghosts: allGhosts,
+    get all(){ return [...allAnchors, ...allSelf, ...allProcedural]; },
+  };
+})();
+
+</script>
+<script>
+/* The Lattice — sphere renderer
+ * Pure canvas 2D. Projects lat/lon onto a rotating sphere.
+ * Renders: graticule, pulses, arcs, near-miss ghosts, equator, atmosphere.
+ */
+
+(function(){
+  "use strict";
+
+  const D = window.LATTICE_DATA;
+
+  // ---------- Public namespace ----------
+  const Sphere = window.Sphere = {
+    state: {
+      rotX: -0.15,       // pitch (radians) — slight tilt
+      rotY: 0.3,         // yaw (auto-rotates)
+      autoYaw: 0.04,     // radians/sec
+      radius: 0,
+      cx: 0, cy: 0,
+      zoom: "cosmic",    // cosmic | regional | intimate
+      zoomScale: 1.0,
+      targetZoomScale: 1.0,
+      breath: 0,         // 0..1 oscillation
+      t: 0,              // time in seconds
+      palette: "ember",
+      showGhosts: true,
+      motion: "breath",
+      futureShimmer: 0.6,
+      pulseDensity: 1.0,
+      pointer: {x:-1e4, y:-1e4, dragging:false, lastX:0, lastY:0, justClicked:false},
+      hover: null,       // hovered handshake
+      selected: null,    // locked handshake (intimate)
+      dragged: false,
+    },
+
+    palettes: {
+      ember: { past:"#e8e6df", now:"#e89a5c", future:"#6ea8c6", ghost:"#4a4d58" },
+      ice:   { past:"#cfdbe3", now:"#8fd4ff", future:"#a9f0d9", ghost:"#3a4b58" },
+      bone:  { past:"#f2eee3", now:"#f2eee3", future:"#bcb7aa", ghost:"#4a4842" },
+    },
+
+    init(canvas, starsCanvas){
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+      this.stars = starsCanvas;
+      this.sctx = starsCanvas.getContext("2d");
+      this._seedStars();
+      this.resize();
+      window.addEventListener("resize", ()=>this.resize());
+      this._bindPointer();
+    },
+
+    resize(){
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      for (const c of [this.canvas, this.stars]){
+        c.width = Math.floor(window.innerWidth * dpr);
+        c.height = Math.floor(window.innerHeight * dpr);
+        c.style.width = window.innerWidth + "px";
+        c.style.height = window.innerHeight + "px";
+      }
+      this.ctx.setTransform(dpr,0,0,dpr,0,0);
+      this.sctx.setTransform(dpr,0,0,dpr,0,0);
+      const w = window.innerWidth, h = window.innerHeight;
+      this.state.cx = w/2;
+      this.state.cy = h/2 + 20;
+      this.state.radius = Math.min(w,h) * 0.34;
+      this._drawStars();
+    },
+
+    setZoom(level){
+      this.state.zoom = level;
+      this.state.targetZoomScale = level==="cosmic" ? 1.0 : level==="regional" ? 1.55 : 2.4;
+      this.state.autoYaw = level==="intimate" ? 0.005 : level==="regional" ? 0.02 : 0.04;
+    },
+
+    setPalette(p){ this.state.palette = p; this._drawStars(); },
+    setGhosts(on){ this.state.showGhosts = on; },
+    setMotion(m){ this.state.motion = m; },
+
+    // ---------- Stars background ----------
+    _seedStars(){
+      const s = [];
+      const n = 320;
+      for (let i=0;i<n;i++){
+        s.push({
+          x: Math.random(),
+          y: Math.random(),
+          r: Math.pow(Math.random(), 3) * 1.4 + 0.2,
+          a: 0.15 + Math.random()*0.5,
+        });
+      }
+      this._stars = s;
+    },
+    _drawStars(){
+      const ctx = this.sctx;
+      const w = window.innerWidth, h = window.innerHeight;
+      ctx.clearRect(0,0,w,h);
+      // vignette
+      const g = ctx.createRadialGradient(w/2, h/2+20, this.state.radius*0.8, w/2, h/2+20, Math.max(w,h));
+      g.addColorStop(0, "rgba(12,14,22,0.0)");
+      g.addColorStop(0.5, "rgba(7,7,10,0.2)");
+      g.addColorStop(1, "rgba(0,0,0,0.85)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,w,h);
+      // stars
+      ctx.fillStyle = "#e8e6df";
+      for (const s of this._stars){
+        ctx.globalAlpha = s.a;
+        ctx.beginPath();
+        ctx.arc(s.x*w, s.y*h, s.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    },
+
+    // ---------- Projection ----------
+    project(latDeg, lonDeg){
+      // convert to radians
+      const lat = latDeg * Math.PI/180;
+      const lon = lonDeg * Math.PI/180;
+      // sphere coords (unit)
+      let x = Math.cos(lat) * Math.sin(lon);
+      let y = Math.sin(lat);
+      let z = Math.cos(lat) * Math.cos(lon);
+      // rotate yaw (around y)
+      const yaw = this.state.rotY;
+      let x1 = x*Math.cos(yaw) + z*Math.sin(yaw);
+      let z1 = -x*Math.sin(yaw) + z*Math.cos(yaw);
+      // rotate pitch (around x)
+      const pitch = this.state.rotX;
+      let y1 = y*Math.cos(pitch) - z1*Math.sin(pitch);
+      let z2 = y*Math.sin(pitch) + z1*Math.cos(pitch);
+      // project
+      const R = this.state.radius * this.state.zoomScale;
+      const sx = this.state.cx + x1 * R;
+      const sy = this.state.cy - y1 * R;
+      return { x: sx, y: sy, z: z2, visible: z2 > -0.02 };
+    },
+
+    // ---------- Main draw ----------
+    frame(dt){
+      this.state.t += dt;
+      // breath
+      if (this.state.motion === "breath"){
+        this.state.breath = 0.5 + 0.5 * Math.sin(this.state.t * 0.4);
+      } else {
+        this.state.breath = 0.5;
+      }
+      // auto yaw
+      if (!this.state.pointer.dragging){
+        this.state.rotY += this.state.autoYaw * dt;
+      }
+      // zoom easing
+      this.state.zoomScale += (this.state.targetZoomScale - this.state.zoomScale) * Math.min(1, dt*2.5);
+
+      const ctx = this.ctx;
+      const w = window.innerWidth, h = window.innerHeight;
+      ctx.clearRect(0,0,w,h);
+
+      this._drawAtmosphere();
+      this._drawGraticule();
+      this._drawCoastlines();
+      this._drawDomainBands();
+      this._drawEquator();
+      this._drawGhosts();
+      this._drawPulses();
+      this._drawSelfCluster();
+      this._drawAnchors();
+      this._drawHoverHalo();
+    },
+
+    // ---------- Coastlines (real-world) ----------
+    _loadCoastlines(){
+      if (this._coastPromise) return this._coastPromise;
+      const url = "https://unpkg.com/world-atlas@2.0.2/land-110m.json";
+      this._coastPromise = fetch(url)
+        .then(r => r.json())
+        .then(topo => {
+          // inline topojson-client feature extraction for MultiPolygon land
+          const obj = topo.objects.land;
+          const arcs = topo.arcs;
+          const tr = topo.transform;
+          const decodeArc = (arc) => {
+            let x = 0, y = 0;
+            const out = [];
+            for (const p of arc){
+              x += p[0]; y += p[1];
+              out.push([x * tr.scale[0] + tr.translate[0], y * tr.scale[1] + tr.translate[1]]);
+            }
+            return out;
+          };
+          const ringFromArcIds = (ids) => {
+            const pts = [];
+            for (const id of ids){
+              const rev = id < 0;
+              const arc = arcs[rev ? ~id : id];
+              const dec = decodeArc(arc);
+              const seq = rev ? dec.slice().reverse() : dec;
+              for (let i=0; i<seq.length; i++){
+                if (pts.length && i===0) continue; // dedupe join
+                pts.push(seq[i]);
+              }
+            }
+            return pts;
+          };
+          const polygons = [];
+          const pushPoly = (geom) => {
+            if (geom.type === "Polygon"){
+              polygons.push(geom.arcs.map(ringFromArcIds));
+            } else if (geom.type === "MultiPolygon"){
+              for (const poly of geom.arcs) polygons.push(poly.map(ringFromArcIds));
+            }
+          };
+          if (obj.type === "GeometryCollection") obj.geometries.forEach(pushPoly);
+          else pushPoly(obj);
+          this._coastlines = polygons; // [[ [ [lon,lat], ... ] , ... ] , ... ]
+        })
+        .catch(e => { console.warn("coastlines failed", e); this._coastlines = []; });
+      return this._coastPromise;
+    },
+    _drawCoastlines(){
+      if (!this._coastlines){ this._loadCoastlines(); return; }
+      const ctx = this.ctx;
+      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = "rgba(232,230,223,0.22)";
+      for (const poly of this._coastlines){
+        for (const ring of poly){
+          ctx.beginPath();
+          let started = false, prevVisible = false;
+          for (let i=0; i<ring.length; i+=1){
+            const [lon, lat] = ring[i];
+            const p = this.project(lat, lon);
+            if (!p.visible){ started = false; prevVisible = false; continue; }
+            if (!started){ ctx.moveTo(p.x, p.y); started = true; }
+            else ctx.lineTo(p.x, p.y);
+            prevVisible = true;
+          }
+          ctx.stroke();
+        }
+      }
+    },
+
+    _palette(){ return this.palettes[this.state.palette]; },
+
+    // ---------- Atmosphere (soft glow behind sphere) ----------
+    _drawAtmosphere(){
+      const ctx = this.ctx;
+      const R = this.state.radius * this.state.zoomScale;
+      const br = 0.15 + 0.1 * this.state.breath;
+      const g = ctx.createRadialGradient(this.state.cx, this.state.cy, R*0.9, this.state.cx, this.state.cy, R*1.7);
+      g.addColorStop(0, "rgba(232,154,92,"+ (0.08*br) +")");
+      g.addColorStop(0.4, "rgba(232,154,92,"+ (0.02*br) +")");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(this.state.cx, this.state.cy, R*1.8, 0, Math.PI*2);
+      ctx.fill();
+
+      // sphere body — very dark
+      const bodyG = ctx.createRadialGradient(
+        this.state.cx - R*0.3, this.state.cy - R*0.3, R*0.1,
+        this.state.cx, this.state.cy, R
+      );
+      bodyG.addColorStop(0, "rgba(20,22,32,0.55)");
+      bodyG.addColorStop(0.7, "rgba(10,11,16,0.6)");
+      bodyG.addColorStop(1, "rgba(4,4,8,0.85)");
+      ctx.fillStyle = bodyG;
+      ctx.beginPath();
+      ctx.arc(this.state.cx, this.state.cy, R, 0, Math.PI*2);
+      ctx.fill();
+    },
+
+    // ---------- Graticule ----------
+    _drawGraticule(){
+      const ctx = this.ctx;
+      ctx.strokeStyle = "rgba(232,230,223,0.05)";
+      ctx.lineWidth = 0.5;
+
+      // latitude circles every 20°
+      for (let lat=-80; lat<=80; lat+=20){
+        if (lat === 0) continue;
+        this._drawLatCircle(lat);
+      }
+      // longitude meridians every 45° (one per domain)
+      for (let lon=0; lon<360; lon+=45){
+        this._drawMeridian(lon);
+      }
+    },
+    _drawLatCircle(lat){
+      const ctx = this.ctx;
+      ctx.beginPath();
+      let started = false;
+      for (let lon=0; lon<=360; lon+=4){
+        const p = this.project(lat, lon);
+        if (!p.visible){ started=false; continue; }
+        if (!started){ ctx.moveTo(p.x,p.y); started=true; }
+        else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    },
+    _drawMeridian(lon){
+      const ctx = this.ctx;
+      ctx.beginPath();
+      let started = false;
+      for (let lat=-90; lat<=90; lat+=4){
+        const p = this.project(lat, lon);
+        if (!p.visible){ started=false; continue; }
+        if (!started){ ctx.moveTo(p.x,p.y); started=true; }
+        else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    },
+
+    // ---------- Domain labels around equator ----------
+    _drawDomainBands(){
+      const ctx = this.ctx;
+      ctx.font = "9px 'JetBrains Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const d of D.DOMAINS){
+        // place label just outside the sphere, at equator, at this longitude
+        const p = this.project(2, d.hue);
+        if (!p.visible) continue;
+        // offset outward
+        const dx = p.x - this.state.cx, dy = p.y - this.state.cy;
+        const len = Math.hypot(dx,dy) || 1;
+        const out = 18 + 8*(this.state.zoomScale-1);
+        const lx = p.x + (dx/len)*out;
+        const ly = p.y + (dy/len)*out;
+        const alpha = 0.35 + 0.45 * Math.max(0, p.z);
+        ctx.fillStyle = "rgba(232,230,223," + alpha + ")";
+        ctx.fillText(d.label.toUpperCase(), lx, ly);
+      }
+    },
+
+    // ---------- Equator (NOW) ----------
+    _drawEquator(){
+      const ctx = this.ctx;
+      const pal = this._palette();
+      const audioLvl = (window.Audio && window.Audio.on) ? window.Audio.level : 0;
+      ctx.lineWidth = 1.2;
+      // draw glow — breathes with audio level
+      for (let pass=0; pass<2; pass++){
+        ctx.strokeStyle = pass===0
+          ? "rgba(232,154,92," + (0.12 + audioLvl*0.25).toFixed(3) + ")"
+          : "rgba(232,154,92," + (0.8 + audioLvl*0.15).toFixed(3) + ")";
+        ctx.lineWidth = pass===0 ? 6 + audioLvl*14 : 1 + audioLvl*0.8;
+        ctx.beginPath();
+        let started=false;
+        for (let lon=0; lon<=360; lon+=2){
+          const p = this.project(0, lon);
+          if (!p.visible){ started=false; continue; }
+          if (!started){ ctx.moveTo(p.x,p.y); started=true; }
+          else ctx.lineTo(p.x,p.y);
+        }
+        ctx.stroke();
+      }
+
+      // ticker dot that travels around the equator
+      // speeds up slightly with audio level
+      const lonTick = (this.state.t * (12 + audioLvl*18)) % 360;
+      const pt = this.project(0, lonTick);
+      if (pt.visible){
+        ctx.fillStyle = pal.now;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 2.2 + audioLvl*2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(232,154,92," + (0.25 + audioLvl*0.3).toFixed(3) + ")";
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 6 + audioLvl*8, 0, Math.PI*2);
+        ctx.fill();
+      }
+    },
+
+    // ---------- Pulses ----------
+    _drawPulses(){
+      const ctx = this.ctx;
+      const pal = this._palette();
+      const pulses = D.procedural;
+      const density = this.state.pulseDensity;
+      const shimmer = this.state.futureShimmer;
+      const hoverId = this.state.hover ? this.state.hover.id : -1;
+
+      for (let i=0; i<pulses.length; i++){
+        if ((i / pulses.length) > density && i > 60) continue; // density control
+        const h = pulses[i];
+        const p = this.project(h.lat, h.lon);
+        if (!p.visible) continue;
+
+        const isFuture = h.future;
+        const baseAlpha = 0.35 + 0.55 * Math.max(0, p.z);
+        let alpha = baseAlpha * (0.4 + h.weight);
+
+        // pulse timing
+        const phase = (this.state.t * (isFuture?0.7:0.5) + h.phase*10) % (isFuture?1.6:2.4);
+        const burst = phase < 0.25 ? (1 - phase/0.25) : 0;
+
+        if (isFuture){
+          // shimmer: flicker
+          const flick = 0.4 + 0.6 * Math.sin(this.state.t * 3 + h.phase*50);
+          alpha *= 0.55 + shimmer * flick * 0.6;
+        }
+
+        const color = isFuture ? pal.future : pal.past;
+        const r = 0.7 + h.weight * 1.4 + burst*1.8;
+
+        ctx.fillStyle = this._rgba(color, alpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+        ctx.fill();
+
+        // occasional burst glow for past
+        if (!isFuture && burst > 0.2){
+          ctx.fillStyle = this._rgba(color, alpha*burst*0.3);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r + burst*6, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    },
+
+    // ---------- Anchor handshakes (named/real) ----------
+    _drawAnchors(){
+      const ctx = this.ctx;
+      const pal = this._palette();
+      const hoverId = this.state.hover ? this.state.hover.id : -1;
+      const selId = this.state.selected ? this.state.selected.id : -1;
+
+      const anchors = D.anchors;
+      for (const h of anchors){
+        const p = this.project(h.lat, h.lon);
+        if (!p.visible) continue;
+        const isFuture = h.future;
+        const baseAlpha = 0.55 + 0.45 * Math.max(0, p.z);
+        const color = isFuture ? pal.future : pal.past;
+
+        // arc: draw brief connecting arc between the two points of the handshake
+        // (we don't actually have a second point — use a short curved companion arc)
+        const phase = (this.state.t * 0.6 + h.phase*5) % 3.2;
+        const arcBurst = phase < 0.45 ? 1 - phase/0.45 : 0;
+
+        // main pulse
+        ctx.fillStyle = this._rgba(color, baseAlpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2.4 + h.weight*1.6, 0, Math.PI*2);
+        ctx.fill();
+
+        // glow
+        ctx.fillStyle = this._rgba(color, 0.18 * baseAlpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 10 + h.weight*8, 0, Math.PI*2);
+        ctx.fill();
+
+        if (arcBurst > 0.05){
+          ctx.fillStyle = this._rgba(color, arcBurst * 0.3);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 4 + arcBurst*14, 0, Math.PI*2);
+          ctx.fill();
+        }
+
+        // label when zoomed
+        if (this.state.zoomScale > 1.3){
+          const a = (this.state.zoomScale - 1.3) / 0.8;
+          ctx.font = "9px 'JetBrains Mono', monospace";
+          ctx.fillStyle = this._rgba("#e8e6df", Math.min(1, a) * (0.55 + 0.45*Math.max(0,p.z)));
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText("· " + h.year + "  " + h.a, p.x + 8, p.y);
+        }
+
+        // selection ring
+        if (h.id === selId){
+          ctx.strokeStyle = pal.now;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 12 + 2*Math.sin(this.state.t*3), 0, Math.PI*2);
+          ctx.stroke();
+        }
+        if (h.id === hoverId){
+          ctx.strokeStyle = this._rgba(pal.now, 0.5);
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 9, 0, Math.PI*2);
+          ctx.stroke();
+        }
+      }
+    },
+
+    _drawSelfCluster(){
+      const ctx = this.ctx;
+      const pal = this._palette();
+      for (const h of D.self){
+        const p = this.project(h.lat, h.lon);
+        if (!p.visible) continue;
+        // extra warm pulsing ring
+        const pulse = 0.5 + 0.5 * Math.sin(this.state.t * 1.6 + h.phase*5);
+        ctx.fillStyle = this._rgba(pal.now, 0.85);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2 + pulse*1.2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = this._rgba(pal.now, 0.25 + 0.35*pulse);
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6 + pulse*6, 0, Math.PI*2);
+        ctx.stroke();
+      }
+    },
+
+    // ---------- Ghost near-misses ----------
+    _drawGhosts(){
+      if (!this.state.showGhosts) return;
+      const ctx = this.ctx;
+      const pal = this._palette();
+      const hoverId = this.state.hover ? this.state.hover.id : -1;
+      const selId = this.state.selected ? this.state.selected.id : -1;
+      ctx.setLineDash([2,3]);
+      for (const h of D.ghosts){
+        const p = this.project(h.lat, h.lon);
+        if (!p.visible) continue;
+        const a = 0.35 + 0.45 * Math.max(0, p.z);
+        ctx.strokeStyle = this._rgba(pal.ghost, a);
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+        ctx.stroke();
+        // tiny X inside
+        ctx.beginPath();
+        ctx.moveTo(p.x-2, p.y-2); ctx.lineTo(p.x+2, p.y+2);
+        ctx.moveTo(p.x+2, p.y-2); ctx.lineTo(p.x-2, p.y+2);
+        ctx.stroke();
+
+        if (h.id === hoverId || h.id === selId){
+          ctx.strokeStyle = this._rgba(pal.ghost, 0.9);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 8, 0, Math.PI*2);
+          ctx.stroke();
+        }
+      }
+      ctx.setLineDash([]);
+    },
+
+    _drawHoverHalo(){
+      const h = this.state.hover;
+      if (!h) return;
+      // already drawn per-anchor; nothing extra needed
+    },
+
+    // ---------- Picking ----------
+    pickAt(mx, my){
+      // find closest visible pulse within 12px
+      let best = null;
+      let bestD = 14*14;
+      const check = (list)=>{
+        for (const h of list){
+          const p = this.project(h.lat, h.lon);
+          if (!p.visible) continue;
+          const dx = p.x - mx, dy = p.y - my;
+          const d2 = dx*dx + dy*dy;
+          if (d2 < bestD){ bestD = d2; best = h; }
+        }
+      };
+      check(D.anchors);
+      check(D.self);
+      if (this.state.showGhosts) check(D.ghosts);
+      // only pick from procedural if nothing found — tighter threshold
+      if (!best){
+        let bp = null, bd = 8*8;
+        for (const h of D.procedural){
+          const p = this.project(h.lat, h.lon);
+          if (!p.visible) continue;
+          const dx = p.x - mx, dy = p.y - my;
+          const d2 = dx*dx + dy*dy;
+          if (d2 < bd){ bd = d2; bp = h; }
+        }
+        best = bp;
+      }
+      return best;
+    },
+
+    // ---------- Pointer ----------
+    _bindPointer(){
+      const c = this.canvas;
+      const st = this.state;
+      c.style.pointerEvents = "auto";
+      c.style.cursor = "grab";
+
+      c.addEventListener("pointerdown", (e)=>{
+        st.pointer.dragging = true;
+        st.pointer.lastX = e.clientX;
+        st.pointer.lastY = e.clientY;
+        st.dragged = false;
+        c.setPointerCapture(e.pointerId);
+        c.style.cursor = "grabbing";
+      });
+      c.addEventListener("pointermove", (e)=>{
+        st.pointer.x = e.clientX; st.pointer.y = e.clientY;
+        if (st.pointer.dragging){
+          const dx = e.clientX - st.pointer.lastX;
+          const dy = e.clientY - st.pointer.lastY;
+          if (Math.abs(dx)+Math.abs(dy) > 2) st.dragged = true;
+          st.rotY += dx * 0.005;
+          st.rotX = Math.max(-1.1, Math.min(1.1, st.rotX + dy * 0.005));
+          st.pointer.lastX = e.clientX;
+          st.pointer.lastY = e.clientY;
+        } else {
+          const h = this.pickAt(e.clientX, e.clientY);
+          st.hover = h;
+          c.style.cursor = h ? "pointer" : "grab";
+          if (window.LatticeApp) window.LatticeApp.updateTooltip(h, e.clientX, e.clientY);
+        }
+      });
+      c.addEventListener("pointerup", (e)=>{
+        st.pointer.dragging = false;
+        c.style.cursor = "grab";
+        if (!st.dragged){
+          const h = this.pickAt(e.clientX, e.clientY);
+          if (h && window.LatticeApp) window.LatticeApp.selectHandshake(h);
+        }
+      });
+      c.addEventListener("pointerleave", ()=>{
+        st.pointer.dragging = false;
+        st.hover = null;
+        if (window.LatticeApp) window.LatticeApp.updateTooltip(null);
+      });
+      // wheel to zoom
+      c.addEventListener("wheel", (e)=>{
+        e.preventDefault();
+        const s = Math.exp(-e.deltaY * 0.001);
+        st.targetZoomScale = Math.max(0.8, Math.min(3.2, st.targetZoomScale * s));
+        if (st.targetZoomScale < 1.3) st.zoom = "cosmic";
+        else if (st.targetZoomScale < 2.0) st.zoom = "regional";
+        else st.zoom = "intimate";
+        if (window.LatticeApp) window.LatticeApp.syncZoomButtons();
+      }, { passive:false });
+    },
+
+    _rgba(hex, a){
+      // accept #rrggbb
+      const r = parseInt(hex.slice(1,3),16);
+      const g = parseInt(hex.slice(3,5),16);
+      const b = parseInt(hex.slice(5,7),16);
+      return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+    },
+  };
+})();
+
+</script>
+<script>
+/* The Lattice — app glue */
+(function(){
+  "use strict";
+
+  const D = window.LATTICE_DATA;
+
+  const els = {
+    sphere: document.getElementById("sphere"),
+    stars: document.getElementById("stars"),
+    tip: document.getElementById("tip"),
+    intimate: document.getElementById("intimate"),
+    intIdx: document.getElementById("int-idx"),
+    intTitle: document.getElementById("int-title"),
+    intMeta: document.getElementById("int-meta"),
+    intFrames: document.getElementById("int-frames"),
+    closeIntimate: document.getElementById("close-intimate"),
+    nowclock: document.getElementById("nowclock"),
+    pulseCount: document.getElementById("pulseCount"),
+    ghostCount: document.getElementById("ghostCount"),
+    density: document.getElementById("density"),
+    veil: document.getElementById("veil"),
+    enter: document.getElementById("enter"),
+    btnGhosts: document.getElementById("btn-ghosts"),
+    btnSound: document.getElementById("btn-sound"),
+    btnTweaks: document.getElementById("btn-tweaks"),
+    tweaks: document.getElementById("tweaks"),
+    tRot: document.getElementById("t-rot"),
+    vRot: document.getElementById("v-rot"),
+    tDensity: document.getElementById("t-density"),
+    vDensity: document.getElementById("v-density"),
+    tShimmer: document.getElementById("t-shimmer"),
+    vShimmer: document.getElementById("v-shimmer"),
+    caption: document.getElementById("caption"),
+    zoomButtons: document.querySelectorAll(".zoom-stack button"),
+    motionChips: document.querySelectorAll(".chip[data-motion]"),
+    palChips: document.querySelectorAll(".chip[data-pal]"),
+  };
+
+  // ---------- Audio (melody-driven) ----------
+  // The lattice listens to an uploaded melody and breathes with it.
+  const Audio = {
+    on: false, ctx: null, master: null,
+    src: null, buffer: null, node: null, analyser: null,
+    freqData: null, timeData: null,
+    // live signals the lenses read:
+    level: 0,       // 0..1 amplitude envelope
+    lowBand: 0,     // bass band
+    midBand: 0,     // mid band
+    highBand: 0,    // high band
+    pulseGate: 0,   // rising-edge detector for beat pings
+    _lastLevel: 0,
+    playhead: 0,    // 0..1 position within the loop
+    duration: 0,
+    // Playlist: each song finds different paths through the lattice.
+    playlist: [
+      { url: "melody.wav",  name: "i · fijubofagi" },
+      { url: "melody2.wav", name: "ii · kubohi" },
+      { url: "melody3.mp3", name: "iii · firepi · vie de" },
+      { url: "uploads/BEAT0022.mp3",        name: "iv · beat 22" },
+      { url: "uploads/BEAT0033.mp3",        name: "v · beat 33" },
+      { url: "uploads/BEAT0044.mp3",        name: "vi · beat 44" },
+      { url: "uploads/BEAT0055.mp3",        name: "vii · beat 55" },
+      { url: "uploads/BEAT0066.mp3",        name: "viii · beat 66" },
+      { url: "uploads/BEAT0088-0044V2.mp3", name: "ix · beat 88·44" },
+      { url: "uploads/fijubofagicopy (2).livereason.reason 4REAL.mp3s.mp3", name: "x · fijubofagi · live reason" },
+      { url: "uploads/dolibikasteps.4realreason.mp3",                      name: "xi · dolibika steps" },
+      { url: "uploads/fijubofagicopy ✌.mp3",                               name: "xii · fijubofagi ✌" },
+      { url: "uploads/BosepoCopyCopy 2.wav",                               name: "xiii · bosepo" },
+      { url: "uploads/dypitovuve 2.wav",                                   name: "xiv · dypitovuve" },
+      { url: "uploads/dypitovuve-e18824a2.wav",                            name: "xv · dypitovuve ii" },
+      { url: "uploads/bumyvigomocopycopy.wav",                             name: "xvi · bumyvigomo" },
+      { url: "uploads/dolibikacopycopy.wav",                               name: "xvii · dolibika" },
+      { url: "uploads/bumyvigomo.wav",      name: "xviii · bumyvigomo ii" },
+      { url: "uploads/dolibika.wav",        name: "xix · dolibika ii" },
+      { url: "uploads/bufomyfeje.wav",      name: "xx · bufomyfeje" },
+      { url: "uploads/JehyniliCopyCopy.wav",name: "xxi · jehynili" },
+      { url: "uploads/Bold ring.wav",       name: "xxii · bold ring" },
+      { url: "uploads/HugoXMACHINEcopy.wav",name: "xxiii · hugo × machine" },
+      { url: "uploads/dolibikacopy.wav",    name: "xxiv · dolibika iii" },
+      { url: "uploads/Dra.wav",             name: "xxv · dra" },
+      { url: "uploads/BEAT001.wav",         name: "xxvi · beat 001" },
+      { url: "uploads/BosepoCopy.wav",      name: "xxvii · bosepo ii" },
+      { url: "uploads/fijubofagicopycopy.wav",  name: "xxviii · fijubofagi ii" },
+      { url: "uploads/fijubofagi.wav",          name: "xxix · fijubofagi iii" },
+      { url: "uploads/Hatogatily 2.wav",        name: "xxx · hatogatily" },
+      { url: "uploads/Hatogatily 3.wav",        name: "xxxi · hatogatily ii" },
+      { url: "uploads/favypymupu.wav",          name: "xxxii · favypymupu" },
+      { url: "uploads/favypymupu 2.wav",        name: "xxxiii · favypymupu ii" },
+      { url: "uploads/Kubohicopycopy.wav",      name: "xxxiv · kubohi ii" },
+      { url: "uploads/najelacopyjudgedreed.mp3",name: "xxxv · najela · judge·dreed" },
+      { url: "uploads/najelacopy002233.mp3",    name: "xxxvi · najela 0022" },
+      { url: "uploads/najelacopy.mp3",          name: "xxxvii · najela" },
+      { url: "uploads/mother talk.3mp3.mp3",    name: "xxxviii · mother talk iii" },
+      { url: "uploads/mother talk.mp3",         name: "xxxix · mother talk" },
+      { url: "uploads/kupumyrysucopycopy00 ✌.mp3", name: "xl · kupumyrysu ✌" },
+      { url: "uploads/firepi ✌vie de.mp3s-d809b8e9.mp3", name: "xli · firepi ✌ vie de ii" },
+      { url: "uploads/BEAT0011.mp3",            name: "xlii · beat 11" },
+      { url: "uploads/JehyniliCopyCopyCopy.wav",name: "xliii · jehynili ii" },
+      { url: "uploads/BosepoCopyCopy.wav",      name: "xliv · bosepo iii" },
+      { url: "uploads/BEAT0077.wav",            name: "xlv · beat 77" },
+      { url: "uploads/BEAT002.wav",             name: "xlvi · beat 002" },
+      { url: "uploads/fijubofagicopycopy 2.wav",name: "xlvii · fijubofagi iv" },
+      { url: "uploads/JehyniliCopyCopy-b7e609f5.wav", name: "xlviii · jehynili iii" },
+      { url: "uploads/KubohiCopycopy 2.wav",           name: "xlix · kubohi iii" },
+      { url: "uploads/KubohiCopyAttardacopy.wav",      name: "l · kubohi × attarda" },
+      { url: "uploads/KubohiCopyAttardacopy 2.wav",    name: "li · kubohi × attarda ii" },
+      { url: "uploads/Kubohicopycopy 3.wav",           name: "lii · kubohi iv" },
+      { url: "uploads/Kubohicopycopycopy.wav",         name: "liii · kubohi v" },
+      { url: "uploads/Kubohicopycopycopy 2.wav",       name: "liv · kubohi vi" },
+      { url: "uploads/Kubohicopycopycopycopy.wav",     name: "lv · kubohi vii" },
+      { url: "uploads/Kubohicopycopycopycopy 2.wav",   name: "lvi · kubohi viii" },
+      { url: "uploads/Kubohicopycopycopycopy 3.wav",   name: "lvii · kubohi ix" },
+      { url: "uploads/Kubohicopycopycopy 3.wav",       name: "lviii · kubohi x" },
+      { url: "uploads/Kubohicopycopy 4.wav",           name: "lix · kubohi xi" },
+      { url: "uploads/Kubohicopycopy 5.wav",           name: "lx · kubohi xii" },
+      { url: "uploads/Kubohicopycopy 6.wav",           name: "lxi · kubohi xiii" },
+      { url: "uploads/Kubohi.wav",                     name: "lxii · kubohi (origin)" },
+      { url: "uploads/Tulenotabucopycopy.wav",         name: "lxiii · tulenotabu i" },
+      { url: "uploads/Tulenotabucopycopy 2.wav",       name: "lxiv · tulenotabu ii" },
+      { url: "uploads/Tulenotabucopycopy 3.wav",       name: "lxv · tulenotabu iii" },
+    ],
+    trackIdx: 0,
+    get melodyUrl(){ return this.playlist[this.trackIdx].url; },
+
+    async init(){
+      if (this.ctx) return;
+      try {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = 0;
+        this.master.connect(this.ctx.destination);
+        this.analyser = this.ctx.createAnalyser();
+        this.analyser.fftSize = 1024;
+        this.analyser.smoothingTimeConstant = 0.82;
+        this.analyser.connect(this.master);
+        this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
+        this.timeData = new Uint8Array(this.analyser.fftSize);
+        await this._loadTrack();
+      } catch(e){ console.warn("audio init failed", e); }
+    },
+    async _loadTrack(){
+      const resp = await fetch(this.melodyUrl);
+      const buf = await resp.arrayBuffer();
+      this.buffer = await this.ctx.decodeAudioData(buf);
+      this.duration = this.buffer.duration;
+      // invalidate any waveform cache in the Song lens so it redecimates
+      if (window.Song) window.Song.waveSamples = null;
+      this._start();
+    },
+    async nextTrack(){
+      this.trackIdx = (this.trackIdx + 1) % this.playlist.length;
+      if (!this.ctx){ await this.init(); return this.playlist[this.trackIdx]; }
+      await this._loadTrack();
+      return this.playlist[this.trackIdx];
+    },
+    async selectTrack(i){
+      if (i === this.trackIdx) return;
+      this.trackIdx = ((i % this.playlist.length) + this.playlist.length) % this.playlist.length;
+      if (!this.ctx){ await this.init(); return; }
+      await this._loadTrack();
+    },
+    _start(){
+      if (!this.buffer) return;
+      if (this.node){ try{ this.node.stop(); }catch{} }
+      this.node = this.ctx.createBufferSource();
+      this.node.buffer = this.buffer;
+      this.node.loop = true;
+      this.node.connect(this.analyser);
+      this.node.start(0);
+      this._startTime = this.ctx.currentTime;
+    },
+    async setOn(on){
+      this.on = on;
+      if (!this.ctx){ if (on) await this.init(); }
+      if (!this.ctx) return;
+      if (this.ctx.state === "suspended") this.ctx.resume();
+      const target = on ? 0.22 : 0;
+      this.master.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.master.gain.linearRampToValueAtTime(target, this.ctx.currentTime + 0.8);
+    },
+    tick(){
+      if (!this.analyser) return;
+      this.analyser.getByteFrequencyData(this.freqData);
+      this.analyser.getByteTimeDomainData(this.timeData);
+      // RMS of time domain for level
+      let sum = 0;
+      for (let i=0; i<this.timeData.length; i++){
+        const v = (this.timeData[i]-128)/128;
+        sum += v*v;
+      }
+      const rms = Math.sqrt(sum / this.timeData.length);
+      this.level = Math.min(1, rms * 3);
+      // bands from freq bins
+      const bins = this.freqData.length;
+      let low=0, mid=0, hi=0;
+      const lowEnd = Math.floor(bins*0.08);
+      const midEnd = Math.floor(bins*0.35);
+      for (let i=0; i<lowEnd; i++) low += this.freqData[i];
+      for (let i=lowEnd; i<midEnd; i++) mid += this.freqData[i];
+      for (let i=midEnd; i<bins; i++) hi += this.freqData[i];
+      this.lowBand  = low / (lowEnd*255);
+      this.midBand  = mid / ((midEnd-lowEnd)*255);
+      this.highBand = hi / ((bins-midEnd)*255);
+      // beat gate: rising edge on level
+      this.pulseGate = Math.max(0, this.level - this._lastLevel - 0.04);
+      this._lastLevel = this.level * 0.85 + this._lastLevel * 0.15;
+      // playhead
+      if (this.duration > 0){
+        const elapsed = (this.ctx.currentTime - this._startTime);
+        this.playhead = (elapsed % this.duration) / this.duration;
+      }
+    },
+    ping(){ /* melody replaces the old ping; kept as no-op for callers */ },
+  };
+  window.Audio = Audio;
+
+  // =========================================================
+  //  LENSES — alternate views of the same dataset
+  // =========================================================
+
+  // ---------- Shared helpers ----------
+  function rgba(hex, a){
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+  }
+  function yearLabel(y){ return y<0 ? Math.abs(y)+" BCE" : y+" CE"; }
+
+  // ---------- LENS: CHORD ----------
+  // A ring of domain segments; ribbons between domains = handshakes
+  const Chord = {
+    canvas:null, ctx:null, t:0, cx:0, cy:0, R:0, rIn:0,
+    hover:null, picks:[], segHover:-1, autoRot:0,
+    init(canvas){
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+      this.resize();
+      this._bind();
+      this.ribbons = [];
+      const sample = [...D.anchors, ...D.self, ...D.procedural.slice(0, 700)];
+      for (const h of sample){
+        // each handshake has one domain but the node pair can be imagined
+        // as flowing to a "related" domain. We derive a target domain from
+        // the handshake's 'b' field archetype hash so it's stable.
+        const targetIdx = (Math.abs(this._hash(h.b||"")) % D.DOMAINS.length);
+        const srcIdx = D.DOMAINS.findIndex(d=>d.key===h.domain);
+        this.ribbons.push({
+          h, srcIdx, tgtIdx:targetIdx,
+          weight: h.weight || 0.3,
+          future: h.future,
+          self: h.self,
+        });
+      }
+    },
+    _hash(s){ let h=0; for (let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))|0; } return h; },
+    resize(){
+      const dpr = Math.min(window.devicePixelRatio||1, 2);
+      this.canvas.width = window.innerWidth*dpr;
+      this.canvas.height = window.innerHeight*dpr;
+      this.canvas.style.width = window.innerWidth+"px";
+      this.canvas.style.height = window.innerHeight+"px";
+      this.ctx.setTransform(dpr,0,0,dpr,0,0);
+      this.cx = window.innerWidth/2;
+      this.cy = window.innerHeight/2 + 20;
+      this.R = Math.min(window.innerWidth, window.innerHeight) * 0.34;
+      this.rIn = this.R * 0.88;
+    },
+    frame(dt){
+      this.t += dt;
+      this.autoRot += dt * 0.04;
+      const ctx = this.ctx, w=window.innerWidth, h=window.innerHeight;
+      ctx.clearRect(0,0,w,h);
+      const pal = Sphere.palettes[Sphere.state.palette];
+      const N = D.DOMAINS.length;
+      const segArc = (Math.PI*2) / N;
+      const gap = 0.014;
+      const rot = this.autoRot;
+      const audioLvl = (window.Audio && window.Audio.on) ? window.Audio.level : 0;
+
+      // ambient halo behind ring
+      const grd = ctx.createRadialGradient(this.cx, this.cy, this.R*0.3, this.cx, this.cy, this.R*1.4);
+      grd.addColorStop(0, rgba(pal.now, 0.05 + audioLvl*0.08));
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0,0,w,h);
+
+      // compute per-segment activity for anchoring (count ribbons touching each domain)
+      const activity = new Array(N).fill(0);
+      for (const r of this.ribbons){ activity[r.srcIdx]++; activity[r.tgtIdx]++; }
+      const maxAct = Math.max(1, ...activity);
+
+      // ribbons — grouped layering with per-ribbon alpha based on relation
+      this.picks = [];
+      const focused = this.segHover;
+      for (let i=0;i<this.ribbons.length;i++){
+        const r = this.ribbons[i];
+        const touches = (focused<0) || r.srcIdx===focused || r.tgtIdx===focused;
+        const alphaBase = focused<0 ? 1 : (touches ? 1 : 0.08);
+        const a1 = segArc*r.srcIdx + segArc/2 + (this._hash(r.h.a||"")%100)/100 * segArc*0.4 - segArc*0.2 + rot;
+        const a2 = segArc*r.tgtIdx + segArc/2 + (this._hash(r.h.b||"")%100)/100 * segArc*0.4 - segArc*0.2 + rot;
+        const p1 = { x: this.cx + Math.cos(a1-Math.PI/2)*this.rIn, y: this.cy + Math.sin(a1-Math.PI/2)*this.rIn };
+        const p2 = { x: this.cx + Math.cos(a2-Math.PI/2)*this.rIn, y: this.cy + Math.sin(a2-Math.PI/2)*this.rIn };
+        // bent control toward center but offset perpendicular for organic feel
+        const ctrl = { x: this.cx, y: this.cy };
+
+        const color = r.self ? pal.now : r.future ? pal.future : pal.past;
+        const base = (r.h.anchor||r.self) ? 0.6 : 0.12;
+        ctx.strokeStyle = rgba(color, base * (r.weight*1.2 + 0.25) * alphaBase);
+        ctx.lineWidth = r.self ? 1.6 : (r.h.anchor ? 1.2 : 0.55);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.quadraticCurveTo(ctrl.x, ctrl.y, p2.x, p2.y);
+        ctx.stroke();
+
+        // animated light traveling along anchor/self ribbons — beat-reactive
+        if (r.h.anchor || r.self){
+          const speed = 0.35 + audioLvl*0.9;
+          const tt = ((this.t*speed) + (this._hash(r.h.a||"")%1000)/1000) % 1;
+          const qx = (1-tt)*(1-tt)*p1.x + 2*(1-tt)*tt*ctrl.x + tt*tt*p2.x;
+          const qy = (1-tt)*(1-tt)*p1.y + 2*(1-tt)*tt*ctrl.y + tt*tt*p2.y;
+          // glow
+          ctx.fillStyle = rgba(color, 0.22 * alphaBase);
+          ctx.beginPath(); ctx.arc(qx, qy, (r.self?5:3.5)+audioLvl*3, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = rgba(color, 0.95 * alphaBase);
+          ctx.beginPath(); ctx.arc(qx, qy, r.self ? 2 : 1.6, 0, Math.PI*2); ctx.fill();
+          this.picks.push({x:qx, y:qy, h:r.h});
+        }
+      }
+
+      // ring segments — thickness scales with activity, with an inner glow
+      this.segRegions = [];
+      for (let i=0;i<N;i++){
+        const a0 = segArc*i + gap/2 - Math.PI/2 + rot;
+        const a1 = segArc*(i+1) - gap/2 - Math.PI/2 + rot;
+        const isHover = focused===i;
+        // outer glow
+        ctx.strokeStyle = rgba(pal.now, (isHover?0.5:0.08) + audioLvl*0.1);
+        ctx.lineWidth = 14;
+        ctx.beginPath();
+        ctx.arc(this.cx, this.cy, this.R, a0, a1);
+        ctx.stroke();
+        // core
+        ctx.strokeStyle = rgba(pal.past, isHover ? 0.9 : 0.55);
+        ctx.lineWidth = 3 + (activity[i]/maxAct)*3;
+        ctx.beginPath();
+        ctx.arc(this.cx, this.cy, this.R, a0, a1);
+        ctx.stroke();
+        // inner tick marks — density indicators
+        const acount = Math.min(40, Math.round(activity[i]/maxAct*40));
+        for (let k=0;k<acount;k++){
+          const a = a0 + (a1-a0)*(k/(acount-1||1));
+          ctx.strokeStyle = rgba(pal.past, 0.25);
+          ctx.lineWidth = 0.7;
+          ctx.beginPath();
+          ctx.moveTo(this.cx+Math.cos(a)*(this.R-4), this.cy+Math.sin(a)*(this.R-4));
+          ctx.lineTo(this.cx+Math.cos(a)*(this.R+4), this.cy+Math.sin(a)*(this.R+4));
+          ctx.stroke();
+        }
+        this.segRegions.push({ a0, a1, idx:i });
+
+        // domain label on a curve
+        const mid = (a0+a1)/2;
+        const lr = this.R + 28;
+        const lx = this.cx + Math.cos(mid)*lr;
+        const ly = this.cy + Math.sin(mid)*lr;
+        ctx.fillStyle = rgba(pal.past, isHover?1:0.75);
+        ctx.font = isHover ? "11px 'JetBrains Mono', monospace" : "10px 'JetBrains Mono', monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.save();
+        ctx.translate(lx,ly);
+        // don't rotate so labels remain readable
+        ctx.fillText(D.DOMAINS[i].label.toUpperCase(), 0, 0);
+        // count underneath
+        ctx.fillStyle = rgba(pal.past, 0.35);
+        ctx.font = "8px 'JetBrains Mono', monospace";
+        ctx.fillText(String(activity[i]), 0, 12);
+        ctx.restore();
+      }
+
+      // center orb
+      const orbR = this.rIn*0.22;
+      const og = ctx.createRadialGradient(this.cx, this.cy, 0, this.cx, this.cy, orbR);
+      og.addColorStop(0, rgba(pal.now, 0.35 + audioLvl*0.3));
+      og.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = og;
+      ctx.beginPath(); ctx.arc(this.cx, this.cy, orbR, 0, Math.PI*2); ctx.fill();
+
+      // center caption
+      ctx.fillStyle = rgba(pal.past, 0.7);
+      ctx.font = "9px 'JetBrains Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("THE GRAMMAR OF CONTACT", this.cx, this.cy - 4);
+      ctx.fillStyle = rgba(pal.past, 0.4);
+      ctx.font = "italic 10px 'Fraunces', serif";
+      ctx.fillText(focused<0 ? "hover a domain to isolate its contacts" : D.DOMAINS[focused].label, this.cx, this.cy + 12);
+
+      // hover halo on ribbon picks
+      if (this.hover){
+        ctx.strokeStyle = rgba(pal.now, 0.9);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(this.hover.x, this.hover.y, 9, 0, Math.PI*2);
+        ctx.stroke();
+      }
+    },
+    pickAt(mx, my){
+      let best=null, bd = 10*10;
+      for (const p of this.picks){
+        const dx=p.x-mx, dy=p.y-my;
+        const d2 = dx*dx+dy*dy;
+        if (d2<bd){ bd=d2; best=p; }
+      }
+      return best ? best.h : null;
+    },
+    _bind(){
+      const c = this.canvas;
+      c.addEventListener("pointermove", (e)=>{
+        const h = this.pickAt(e.clientX, e.clientY);
+        this.hover = h ? this.picks.find(p=>p.h===h) : null;
+        // segment hover detection
+        const dx = e.clientX - this.cx, dy = e.clientY - this.cy;
+        const r = Math.hypot(dx,dy);
+        if (r > this.R-20 && r < this.R+40){
+          let a = Math.atan2(dy,dx);
+          // normalize into same space as drawn segments (0..2π, offset by rot)
+          this.segHover = -1;
+          for (const sr of (this.segRegions||[])){
+            // unwrap a0 and a1 to same range as a
+            let a0 = sr.a0, a1 = sr.a1;
+            // shift a into range [a0, a0+2π]
+            while (a < a0) a += Math.PI*2;
+            while (a > a0 + Math.PI*2) a -= Math.PI*2;
+            if (a >= a0 && a <= a1){ this.segHover = sr.idx; break; }
+          }
+        } else {
+          this.segHover = -1;
+        }
+        c.style.cursor = (h || this.segHover>=0) ? "pointer" : "default";
+        if (window.LatticeApp) window.LatticeApp.updateTooltip(h, e.clientX, e.clientY);
+      });
+      c.addEventListener("pointerleave", ()=>{
+        this.hover = null;
+        this.segHover = -1;
+        if (window.LatticeApp) window.LatticeApp.updateTooltip(null);
+      });
+      c.addEventListener("click", (e)=>{
+        const h = this.pickAt(e.clientX, e.clientY);
+        if (h && window.LatticeApp) window.LatticeApp.selectHandshake(h);
+      });
+    },
+  };
+
+  // ---------- LENS: RIVER ----------
+  // Horizontal time axis; handshakes as a braid of strands per domain
+  const River = {
+    canvas:null, ctx:null, t:0, W:0, H:0, scrubYear: D.NOW_YEAR,
+    hover:null, picks:[],
+    _hash(s){ let h=0; for (let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))|0; } return h; },
+    init(canvas){
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+      this.resize();
+      this._bind();
+    },
+    resize(){
+      const dpr = Math.min(window.devicePixelRatio||1, 2);
+      this.canvas.width = window.innerWidth*dpr;
+      this.canvas.height = window.innerHeight*dpr;
+      this.canvas.style.width = window.innerWidth+"px";
+      this.canvas.style.height = window.innerHeight+"px";
+      this.ctx.setTransform(dpr,0,0,dpr,0,0);
+      this.W = window.innerWidth;
+      this.H = window.innerHeight;
+    },
+    yearToX(y){
+      const pad = this.W < 1000 ? 140 : 100;
+      const padR = 60;
+      const span = D.MAX_YEAR - D.MIN_YEAR;
+      return pad + ((y - D.MIN_YEAR)/span) * (this.W - pad - padR);
+    },
+    domainToY(domainKey){
+      const N = D.DOMAINS.length;
+      const idx = D.DOMAINS.findIndex(d=>d.key===domainKey);
+      const top = 220, bot = this.H - 150;
+      return top + (idx / (N-1)) * (bot - top);
+    },
+    frame(dt){
+      this.t += dt;
+      const ctx = this.ctx;
+      ctx.clearRect(0,0,this.W,this.H);
+      const pal = Sphere.palettes[Sphere.state.palette];
+      const audioLvl = (window.Audio && window.Audio.on) ? window.Audio.level : 0;
+
+      // ---- Era atmosphere bands (vertical, span full chart) ----
+      const eras = [
+        { from: D.MIN_YEAR, to: -500,  name: "DEEP TIME",      short: "DEEP",    tint: 0.015 },
+        { from: -500,       to: 500,   name: "CLASSICAL",      short: "CLASS.",  tint: 0.025 },
+        { from: 500,        to: 1400,  name: "DARK AGES",      short: "DARK",    tint: 0.012 },
+        { from: 1400,       to: 1700,  name: "RENAISSANCE",    short: "RENAI.",  tint: 0.035 },
+        { from: 1700,       to: 1900,  name: "ENLIGHTENMENT",  short: "ENLIGHT.",tint: 0.04  },
+        { from: 1900,       to: 2000,  name: "MODERN",         short: "MOD.",    tint: 0.055 },
+        { from: 2000,       to: D.MAX_YEAR, name: "NOW",       short: "NOW",     tint: 0.07  },
+      ];
+      for (let ei=0; ei<eras.length; ei++){
+        const era = eras[ei];
+        const x0 = this.yearToX(era.from);
+        const x1 = this.yearToX(era.to);
+        ctx.fillStyle = rgba(pal.past, era.tint);
+        ctx.fillRect(x0, 130, x1-x0, this.H-260);
+        // era label top — skip if too narrow, stagger vertically for recent eras
+        const w = x1 - x0;
+        const label = w < 60 ? era.short : era.name;
+        const labelW = ctx.measureText(label).width;
+        if (w > labelW + 8){
+          ctx.fillStyle = rgba(pal.past, 0.4);
+          ctx.font = "9px 'JetBrains Mono', monospace";
+          ctx.textAlign = "center";
+          // stagger: alternate row for adjacent narrow eras
+          const isNarrow = w < 120;
+          const yOffset = isNarrow && (ei % 2) ? 164 : 152;
+          ctx.fillText(label, (x0+x1)/2, yOffset);
+        }
+        // era separator
+        ctx.strokeStyle = rgba(pal.past, 0.08);
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x1, 160); ctx.lineTo(x1, this.H-120);
+        ctx.stroke();
+      }
+
+      // domain lane labels — push right so they don't collide with masthead subtitle
+      for (let i=0;i<D.DOMAINS.length;i++){
+        const y = this.domainToY(D.DOMAINS[i].key);
+        ctx.strokeStyle = "rgba(232,230,223,0.05)";
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(140, y); ctx.lineTo(this.W-60, y);
+        ctx.stroke();
+        ctx.fillStyle = rgba(pal.past, 0.55);
+        ctx.font = "9px 'JetBrains Mono', monospace";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(D.DOMAINS[i].label.toUpperCase(), 78, y);
+      }
+
+      // century ticks — thin out on narrow screens
+      const tickStep = this.W < 1000 ? 500 : this.W < 1400 ? 400 : 200;
+      for (let y=-2000; y<=2200; y+=tickStep){
+        const x = this.yearToX(y);
+        ctx.strokeStyle = "rgba(232,230,223,0.06)";
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, 200); ctx.lineTo(x, this.H-130);
+        ctx.stroke();
+        ctx.fillStyle = rgba(pal.past, 0.35);
+        ctx.font = "9px 'JetBrains Mono', monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(yearLabel(y), x, this.H-110);
+      }
+
+      // NOW beam — vertical light with beat-reactive intensity
+      const nowX = this.yearToX(D.NOW_YEAR);
+      const beamIntensity = 0.5 + audioLvl*0.6;
+      const beamGrd = ctx.createLinearGradient(nowX-8, 0, nowX+8, 0);
+      beamGrd.addColorStop(0, "rgba(0,0,0,0)");
+      beamGrd.addColorStop(0.5, rgba(pal.now, 0.18 * beamIntensity));
+      beamGrd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = beamGrd;
+      ctx.fillRect(nowX-8, 120, 16, this.H-240);
+      ctx.strokeStyle = pal.now;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath(); ctx.moveTo(nowX, 120); ctx.lineTo(nowX, this.H-120); ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = rgba(pal.now, 0.95);
+      ctx.font = "10px 'JetBrains Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("NOW · 2026", nowX, 98);
+
+      // density bands — count pulses per 20-year bucket per domain
+      // draw as a thickening line along each domain lane
+      const bucketYears = 25;
+      const buckets = {};
+      for (const h of D.procedural){
+        const by = Math.round(h.year/bucketYears)*bucketYears;
+        const key = h.domain + ":" + by;
+        buckets[key] = (buckets[key]||0) + 1;
+      }
+
+      this.picks = [];
+      for (const d of D.DOMAINS){
+        const laneY = this.domainToY(d.key);
+        ctx.beginPath();
+        let first=true;
+        for (let y=-2000; y<=2200; y+=bucketYears){
+          const c = buckets[d.key+":"+y] || 0;
+          const thick = Math.min(14, Math.sqrt(c)*1.6);
+          const xx = this.yearToX(y);
+          const yy = laneY - thick/2;
+          if (first){ ctx.moveTo(xx, laneY); first=false; }
+          ctx.lineTo(xx, yy);
+        }
+        for (let y=2200; y>=-2000; y-=bucketYears){
+          const c = buckets[d.key+":"+y] || 0;
+          const thick = Math.min(14, Math.sqrt(c)*1.6);
+          const xx = this.yearToX(y);
+          const yy = laneY + thick/2;
+          ctx.lineTo(xx, yy);
+        }
+        ctx.closePath();
+        const grad = ctx.createLinearGradient(60,0,this.W-60,0);
+        grad.addColorStop(0, rgba(pal.past, 0.18));
+        grad.addColorStop(Math.max(0, Math.min(1, (D.NOW_YEAR-D.MIN_YEAR)/(D.MAX_YEAR-D.MIN_YEAR))), rgba(pal.now, 0.35));
+        grad.addColorStop(1, rgba(pal.future, 0.18));
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // flowing particles inside the band — drift rightward in time
+        const particleCount = 8;
+        for (let p=0; p<particleCount; p++){
+          const phase = (this.t*0.08 + p/particleCount + (this._hash(d.key))/10000) % 1;
+          const yr = D.MIN_YEAR + phase * (D.MAX_YEAR - D.MIN_YEAR);
+          const px = this.yearToX(yr);
+          const isFuture = yr > D.NOW_YEAR;
+          const pcol = isFuture ? pal.future : pal.past;
+          ctx.fillStyle = rgba(pcol, 0.55);
+          ctx.beginPath(); ctx.arc(px, laneY, 1.2, 0, Math.PI*2); ctx.fill();
+        }
+      }
+
+      // anchors as luminous marks
+      for (const h of [...D.anchors, ...D.self]){
+        const x = this.yearToX(h.year);
+        const y = this.domainToY(h.domain);
+        const color = h.self ? pal.now : h.future ? pal.future : pal.past;
+        const phase = (this.t*0.6 + (h.phase||0)*5)%3;
+        const burst = phase<0.4 ? 1-phase/0.4 : 0;
+        ctx.fillStyle = rgba(color, 0.9);
+        ctx.beginPath(); ctx.arc(x, y, 2.6 + (h.weight||0.5)*1.4 + burst*1.6, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = rgba(color, 0.18);
+        ctx.beginPath(); ctx.arc(x, y, 10+burst*10, 0, Math.PI*2); ctx.fill();
+        // hair line to lane label
+        this.picks.push({x, y, h});
+        // label when close to hover
+        if (this.hover && this.hover.h === h){
+          ctx.fillStyle = rgba(pal.past, 0.95);
+          ctx.font = "10px 'JetBrains Mono', monospace";
+          ctx.textAlign = "left";
+          ctx.fillText(" · " + yearLabel(h.year) + "  " + h.a, x+8, y-8);
+        }
+      }
+
+      // ghosts
+      if (Sphere.state.showGhosts){
+        ctx.setLineDash([2,3]);
+        for (const h of D.ghosts){
+          const x = this.yearToX(h.year);
+          const y = this.domainToY(h.domain);
+          ctx.strokeStyle = rgba(pal.ghost, 0.7);
+          ctx.lineWidth = 0.8;
+          ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x-2,y-2); ctx.lineTo(x+2,y+2);
+          ctx.moveTo(x+2,y-2); ctx.lineTo(x-2,y+2);
+          ctx.stroke();
+          this.picks.push({x,y,h});
+        }
+        ctx.setLineDash([]);
+      }
+
+      // scrubber position reflection
+      const sx = this.yearToX(this.scrubYear);
+      const sc = document.getElementById("river-now");
+      if (sc){
+        sc.style.left = ((sx - 60) / (this.W - 120) * 100) + "%";
+      }
+    },
+    pickAt(mx, my){
+      let best=null, bd = 10*10;
+      for (const p of this.picks){
+        const dx=p.x-mx, dy=p.y-my;
+        const d2 = dx*dx+dy*dy;
+        if (d2<bd){ bd=d2; best=p; }
+      }
+      return best ? best.h : null;
+    },
+    _bind(){
+      const c = this.canvas;
+      c.addEventListener("pointermove", (e)=>{
+        const h = this.pickAt(e.clientX, e.clientY);
+        this.hover = h ? this.picks.find(p=>p.h===h) : null;
+        c.style.cursor = h ? "pointer" : "crosshair";
+        if (window.LatticeApp) window.LatticeApp.updateTooltip(h, e.clientX, e.clientY);
+      });
+      c.addEventListener("pointerleave", ()=>{
+        this.hover = null;
+        if (window.LatticeApp) window.LatticeApp.updateTooltip(null);
+      });
+      c.addEventListener("click", (e)=>{
+        const h = this.pickAt(e.clientX, e.clientY);
+        if (h && window.LatticeApp) window.LatticeApp.selectHandshake(h);
+      });
+    },
+  };
+
+  // ---------- LENS: RHYME ----------
+  // Group handshakes by structural shape and place matches next to each other
+  const Rhyme = {
+    canvas:null, ctx:null, t:0, W:0, H:0,
+    hover:null, picks:[], rows:[],
+    init(canvas){
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+      this.resize();
+      this._bind();
+      this._buildRows();
+    },
+    _buildRows(){
+      // group by (domain, weight bucket)
+      const groups = {};
+      const all = [...D.anchors, ...D.self, ...D.procedural];
+      for (const h of all){
+        const wb = h.weight<0.25 ? 0 : h.weight<0.45 ? 1 : h.weight<0.7 ? 2 : 3;
+        const k = h.domain + ":" + wb;
+        (groups[k] = groups[k] || []).push(h);
+      }
+      // pick groups with >=4 entries and sort each by year
+      const rows = [];
+      for (const k of Object.keys(groups)){
+        const list = groups[k];
+        if (list.length < 4) continue;
+        // dedupe by actor `a` so we don't repeat the same entity
+        const seen = new Set();
+        const unique = [];
+        for (const h of list){
+          const key = h.a + "|" + h.year;
+          if (seen.has(h.a)) continue;
+          seen.add(h.a);
+          unique.push(h);
+        }
+        unique.sort((a,b)=>a.year-b.year);
+        if (unique.length < 4) continue;
+        const n = Math.min(10, unique.length);
+        const picks = [];
+        for (let i=0;i<n;i++){
+          const idx = Math.round(i/(n-1) * (unique.length-1));
+          picks.push(unique[idx]);
+        }
+        const [domain, wb] = k.split(":");
+        rows.push({
+          domain,
+          weightBucket: +wb,
+          label: D.DOMAINS.find(d=>d.key===domain).label + " · " + ["quiet","modest","notable","load-bearing"][wb],
+          entries: picks,
+        });
+      }
+      // prioritize rows with anchors
+      rows.sort((a,b)=>{
+        const aa = a.entries.filter(h=>h.anchor||h.self).length;
+        const ab = b.entries.filter(h=>h.anchor||h.self).length;
+        return ab - aa;
+      });
+      this.rows = rows.slice(0, 6);
+    },
+    resize(){
+      const dpr = Math.min(window.devicePixelRatio||1, 2);
+      this.canvas.width = window.innerWidth*dpr;
+      this.canvas.height = window.innerHeight*dpr;
+      this.canvas.style.width = window.innerWidth+"px";
+      this.canvas.style.height = window.innerHeight+"px";
+      this.ctx.setTransform(dpr,0,0,dpr,0,0);
+      this.W = window.innerWidth;
+      this.H = window.innerHeight;
+    },
+    frame(dt){
+      this.t += dt;
+      const ctx = this.ctx;
+      ctx.clearRect(0,0,this.W,this.H);
+      const pal = Sphere.palettes[Sphere.state.palette];
+      this.picks = [];
+
+      const topPad = 220;
+      const bottomPad = 90;
+      const leftPad = 360;
+      const rightPad = 80;
+      const rowCount = this.rows.length;
+      if (!rowCount) return;
+      const rowHeight = (this.H - topPad - bottomPad) / rowCount;
+      // compact mode if rows are tight
+      const compact = rowHeight < 80;
+
+      // hovered row detection
+      let hoveredRow = -1;
+      if (this.hover){
+        hoveredRow = Math.floor((this.hover.y - topPad) / rowHeight);
+      }
+
+      for (let r=0;r<this.rows.length;r++){
+        const row = this.rows[r];
+        const y = topPad + rowHeight*r + rowHeight/2;
+        const isHot = hoveredRow === r;
+        const rowAlpha = hoveredRow < 0 ? 1 : (isHot ? 1 : 0.25);
+
+        // row label — Fraunces italic when active
+        ctx.fillStyle = rgba(pal.past, 0.7 * rowAlpha);
+        ctx.font = isHot ? "italic 13px 'Fraunces', serif" : "10px 'JetBrains Mono', monospace";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        const lblParts = row.label.split(" · ");
+        ctx.fillText(lblParts[0].toUpperCase(), leftPad - 24, y - 6);
+        ctx.fillStyle = rgba(pal.past, 0.45 * rowAlpha);
+        ctx.font = "italic 10px 'Fraunces', serif";
+        ctx.fillText(lblParts[1] || "", leftPad - 24, y + 8);
+
+        // connecting thread — subtle curve, brighter on hover
+        ctx.strokeStyle = isHot
+          ? rgba(pal.now, 0.5)
+          : rgba(pal.past, 0.08);
+        ctx.lineWidth = isHot ? 0.8 : 0.6;
+        ctx.beginPath();
+        const n = row.entries.length;
+        for (let i=0; i<n; i++){
+          const x = leftPad + (i/(n-1)) * (this.W - leftPad - rightPad);
+          const yo = Math.sin(this.t*0.3 + r + i*0.4) * (isHot ? 3 : 1);
+          if (i===0) ctx.moveTo(x, y + yo);
+          else ctx.lineTo(x, y + yo);
+        }
+        ctx.stroke();
+
+        // entries — each a typographic "star"
+        for (let i=0;i<n;i++){
+          const h = row.entries[i];
+          const x = leftPad + (i/(n-1)) * (this.W - leftPad - rightPad);
+          const yo = Math.sin(this.t*0.3 + r + i*0.4) * (isHot ? 3 : 1);
+          const py = y + yo;
+          const color = h.self ? pal.now : h.future ? pal.future : pal.past;
+          const phase = (this.t*0.3 + (h.phase||0)*4 + i*0.2) % 2;
+          const burst = phase<0.3 ? 1-phase/0.3 : 0;
+
+          // halo
+          ctx.fillStyle = rgba(color, (0.15 + burst*0.3) * rowAlpha);
+          ctx.beginPath(); ctx.arc(x, py, 10 + burst*10, 0, Math.PI*2); ctx.fill();
+
+          // core star with cross
+          ctx.fillStyle = rgba(color, 0.95 * rowAlpha);
+          ctx.beginPath(); ctx.arc(x, py, 3 + burst*2, 0, Math.PI*2); ctx.fill();
+          if (h.anchor || h.self){
+            ctx.strokeStyle = rgba(color, 0.6 * rowAlpha);
+            ctx.lineWidth = 0.6;
+            const rr = 7 + burst*3;
+            ctx.beginPath();
+            ctx.moveTo(x-rr, py); ctx.lineTo(x+rr, py);
+            ctx.moveTo(x, py-rr); ctx.lineTo(x, py+rr);
+            ctx.stroke();
+          }
+
+          // vertical year tick (subtle)
+          ctx.strokeStyle = rgba(pal.past, 0.18 * rowAlpha);
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, py+8); ctx.lineTo(x, py+14);
+          ctx.stroke();
+          ctx.fillStyle = rgba(pal.past, 0.55 * rowAlpha);
+          ctx.font = "8px 'JetBrains Mono', monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          // only label years on anchors/self OR alternating to keep row clean
+          const showYear = (h.anchor || h.self) || (i % 2 === 0);
+          if (showYear){
+            ctx.fillText(yearLabel(h.year), x, py + 16);
+          }
+
+          // name in Fraunces — italic for self/anchors, brighter on hover
+          if (h.anchor || h.self || isHot){
+            const name = (h.a.length > 22 ? h.a.slice(0,20)+"…" : h.a);
+            ctx.fillStyle = rgba(pal.past, (isHot ? 1 : 0.85) * rowAlpha);
+            ctx.font = (h.self||h.anchor) ? "italic 11px 'Fraunces', serif" : "11px 'Fraunces', serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            ctx.fillText(name, x, py - 14);
+          }
+
+          this.picks.push({x,y:py,h});
+        }
+      }
+
+      // footer caption — poetic when hovering a row
+      ctx.fillStyle = rgba(pal.past, 0.45);
+      ctx.font = "italic 12px 'Fraunces', serif";
+      ctx.textAlign = "center";
+      const caption = hoveredRow >= 0
+        ? `a single gesture, repeating across ${Math.max(...this.rows[hoveredRow].entries.map(e=>e.year)) - Math.min(...this.rows[hoveredRow].entries.map(e=>e.year))} years`
+        : "Each row is a single event repeating across time. The grammar of contact is older than we think.";
+      ctx.fillText(caption, this.W/2, this.H - 30);
+    },
+    pickAt(mx, my){
+      let best=null, bd = 12*12;
+      for (const p of this.picks){
+        const dx=p.x-mx, dy=p.y-my;
+        const d2 = dx*dx+dy*dy;
+        if (d2<bd){ bd=d2; best=p; }
+      }
+      return best ? best.h : null;
+    },
+    _bind(){
+      const c = this.canvas;
+      c.addEventListener("pointermove", (e)=>{
+        const h = this.pickAt(e.clientX, e.clientY);
+        this.hover = { x: e.clientX, y: e.clientY, h };
+        c.style.cursor = h ? "pointer" : "default";
+        if (window.LatticeApp) window.LatticeApp.updateTooltip(h, e.clientX, e.clientY);
+      });
+      c.addEventListener("pointerleave", ()=>{
+        this.hover = null;
+        if (window.LatticeApp) window.LatticeApp.updateTooltip(null);
+      });
+      c.addEventListener("click", (e)=>{
+        const h = this.pickAt(e.clientX, e.clientY);
+        if (h && window.LatticeApp) window.LatticeApp.selectHandshake(h);
+      });
+    },
+  };
+
+  // ---------- LENS: SONG ----------
+  // The melody is itself a lattice of handshakes between notes.
+  // We render a long horizontal ribbon of the uploaded waveform,
+  // a live spectrogram that scrolls with the playhead, and sample
+  // a handshake from the dataset per-beat that "plays" alongside the music.
+  const Song = window.Song = {
+    canvas:null, ctx:null, t:0, W:0, H:0,
+    hover:null, picks:[],
+    // hit regions for track controls
+    trackRegions: [],
+    nextRegion: null,
+    waveSamples: null,   // decimated waveform samples [-1,1]
+    spectroRows: [],     // ring buffer of recent FFT snapshots (256 wide each)
+    spectroMax: 260,
+    beatHits: [],        // recent beat markers { at, y, h }
+    init(canvas){
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+      this.resize();
+      this._bind();
+    },
+    resize(){
+      this.W = this.canvas.width = window.innerWidth * devicePixelRatio;
+      this.H = this.canvas.height = window.innerHeight * devicePixelRatio;
+      this.canvas.style.width = window.innerWidth + "px";
+      this.canvas.style.height = window.innerHeight + "px";
+      this.ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+      this.W = window.innerWidth;
+      this.H = window.innerHeight;
+    },
+    _decimate(){
+      if (!Audio.buffer || this.waveSamples) return;
+      const ch = Audio.buffer.getChannelData(0);
+      const target = 1800; // dense enough for the ribbon
+      const step = Math.max(1, Math.floor(ch.length / target));
+      const out = new Float32Array(target);
+      for (let i=0; i<target; i++){
+        let peak = 0;
+        const s = i*step;
+        const e = Math.min(ch.length, s+step);
+        for (let j=s; j<e; j++){
+          const v = Math.abs(ch[j]);
+          if (v > peak) peak = v;
+        }
+        out[i] = peak;
+      }
+      this.waveSamples = out;
+    },
+    _bind(){
+      const c = this.canvas;
+      c.addEventListener("mousemove", (e)=>{
+        const r = c.getBoundingClientRect();
+        this._mx = e.clientX - r.left;
+        this._my = e.clientY - r.top;
+        let best = null, bd = 24;
+        for (const p of this.picks){
+          const d = Math.hypot(p.x - this._mx, p.y - this._my);
+          if (d < bd){ bd = d; best = p; }
+        }
+        this.hover = best;
+        App.updateTooltip(best ? best.h : null, e.clientX, e.clientY);
+      });
+      c.addEventListener("mouseleave", ()=>{
+        this.hover = null;
+        App.updateTooltip(null);
+      });
+      c.addEventListener("click", (e)=>{
+        if (!this.canvas.classList.contains("active")) return;
+        const r = c.getBoundingClientRect();
+        const mx = e.clientX - r.left, my = e.clientY - r.top;
+        // track-switch regions have priority
+        for (const tr of this.trackRegions){
+          if (mx >= tr.x && mx <= tr.x + tr.w && my >= tr.y && my <= tr.y + tr.h){
+            Audio.selectTrack(tr.idx);
+            if (!Audio.on) Audio.setOn(true);
+            return;
+          }
+        }
+        // pick nearest beat-hit handshake
+        let best=null, bd=28;
+        for (const p of this.picks){
+          const d = Math.hypot(p.x - mx, p.y - my);
+          if (d < bd){ bd=d; best=p; }
+        }
+        if (best) App.selectHandshake(best.h);
+        else {
+          // scrub: clicking on the ribbon seeks the melody
+          if (e.clientY > this.H*0.45 && e.clientY < this.H*0.75){
+            this._seek((mx - 40) / (this.W - 80));
+          }
+        }
+      });
+    },
+    _seek(t01){
+      if (!Audio.buffer || !Audio.ctx) return;
+      t01 = Math.max(0, Math.min(1, t01));
+      try { Audio.node.stop(); } catch(e){}
+      Audio.node = Audio.ctx.createBufferSource();
+      Audio.node.buffer = Audio.buffer;
+      Audio.node.loop = true;
+      Audio.node.connect(Audio.analyser);
+      const offset = t01 * Audio.buffer.duration;
+      Audio.node.start(0, offset);
+      Audio._startTime = Audio.ctx.currentTime - offset;
+    },
+    _sampleHandshakeForBeat(){
+      // pick a handshake biased by audio bands:
+      // high freq -> future, low freq -> past, mid -> self/anchors
+      const pool = Audio.highBand > Audio.lowBand + 0.05
+        ? D.procedural.filter(p=>p.future).slice(0, 400)
+        : Audio.lowBand > Audio.highBand + 0.05
+          ? D.procedural.filter(p=>!p.future && !p.ghost).slice(0, 600)
+          : [...D.anchors, ...D.self];
+      if (!pool.length) return null;
+      return pool[Math.floor(Math.random() * pool.length)];
+    },
+    frame(dt){
+      if (!this.canvas.classList.contains("active")) return;
+      this.t += dt;
+      this._decimate();
+
+      // capture spectrogram row (only when audio is actually producing signal)
+      if (Audio.freqData && Audio.on && Audio.level > 0.002){
+        const row = new Uint8Array(Audio.freqData.length);
+        row.set(Audio.freqData);
+        this.spectroRows.push(row);
+        if (this.spectroRows.length > this.spectroMax) this.spectroRows.shift();
+      }
+
+      // beat detection -> spawn handshake hit
+      if (Audio.pulseGate > 0.06 && this.t - (this._lastBeat||0) > 0.18){
+        const h = this._sampleHandshakeForBeat();
+        if (h){
+          this.beatHits.push({ h, bornAt: this.t, life: 2.4, y: 0 });
+          this._lastBeat = this.t;
+        }
+      }
+      // decay beat hits
+      this.beatHits = this.beatHits.filter(b => this.t - b.bornAt < b.life);
+
+      this._draw();
+    },
+    _draw(){
+      const ctx = this.ctx;
+      const W = this.W, H = this.H;
+      ctx.clearRect(0,0,W,H);
+      const pal = Sphere.palettes[Sphere.state.palette];
+      this.picks = [];
+
+      // ---- Header ----
+      ctx.fillStyle = rgba(pal.past, 0.85);
+      ctx.font = "11px 'JetBrains Mono', monospace";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("05 · THE SONG — MELODY AS LATTICE", 40, 36);
+      ctx.fillStyle = rgba(pal.past, 0.45);
+      ctx.fillText("a melody is a sequence of handshakes between notes. every interval, two tones meet.", 40, 56);
+
+      const melodyReady = !!Audio.buffer;
+      ctx.fillStyle = rgba(pal.now, 0.9);
+      ctx.textAlign = "left";
+      ctx.fillText(melodyReady
+        ? (Audio.on ? "♪ playing · " + Audio.buffer.duration.toFixed(1) + "s loop" : "♪ paused · click speaker to play")
+        : "♪ loading melody…",
+        40, 76);
+      ctx.textAlign = "left";
+
+      // ---- Playlist is now an HTML overlay (#song-playlist) ----
+      // No canvas drawing needed; trackRegions left empty for click handler.
+      this.trackRegions = [];
+      this._plRowsUsed = 0;
+
+      // ---- Circular instrument ----
+      const cx = W / 2;
+      const cy = H / 2 + 50;
+      const R = Math.min(W, H) * 0.30;
+      const rInner = R * 0.55;
+      const rWave = R * 0.82;
+      const rSpec = R * 1.08;
+
+      // ambient halo
+      const haloGrd = ctx.createRadialGradient(cx, cy, rInner*0.4, cx, cy, rSpec*1.4);
+      haloGrd.addColorStop(0, rgba(pal.now, 0.06 + (Audio.level||0)*0.15));
+      haloGrd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = haloGrd;
+      ctx.fillRect(0,0,W,H);
+
+      // spectrum ring (outer) — sweep of recent FFT
+      if (this.spectroRows.length){
+        const latest = this.spectroRows[this.spectroRows.length-1];
+        const bins = latest.length;
+        const useBins = Math.floor(bins * 0.5);
+        const spokes = 180;
+        for (let s=0; s<spokes; s++){
+          const a = (s/spokes) * Math.PI*2 - Math.PI/2;
+          const b = Math.floor((s/spokes) * useBins);
+          const v = latest[b] / 255;
+          if (v < 0.05) continue;
+          const len = v * 40;
+          const col = b < useBins*0.33 ? pal.past : b < useBins*0.66 ? pal.now : pal.future;
+          ctx.strokeStyle = rgba(col, 0.4 + v*0.5);
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(a)*rSpec, cy + Math.sin(a)*rSpec);
+          ctx.lineTo(cx + Math.cos(a)*(rSpec+len), cy + Math.sin(a)*(rSpec+len));
+          ctx.stroke();
+        }
+      }
+
+      // waveform ring (mid)
+      if (this.waveSamples){
+        const N = this.waveSamples.length;
+        const ph = Audio.playhead || 0;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        for (let i=0; i<N; i++){
+          const a = (i/N) * Math.PI*2 - Math.PI/2;
+          const s = this.waveSamples[i];
+          const rr = rWave + s * 28;
+          const x = cx + Math.cos(a) * rr;
+          const y = cy + Math.sin(a) * rr;
+          if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = rgba(pal.past, 0.55);
+        ctx.stroke();
+        // inner mirror
+        ctx.beginPath();
+        for (let i=0; i<N; i++){
+          const a = (i/N) * Math.PI*2 - Math.PI/2;
+          const s = this.waveSamples[i];
+          const rr = rWave - s * 28;
+          const x = cx + Math.cos(a) * rr;
+          const y = cy + Math.sin(a) * rr;
+          if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = rgba(pal.past, 0.35);
+        ctx.stroke();
+
+        // playhead marker — bright radial spoke
+        const phA = ph * Math.PI*2 - Math.PI/2;
+        ctx.strokeStyle = rgba(pal.now, 0.95);
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(phA)*(rInner-4), cy + Math.sin(phA)*(rInner-4));
+        ctx.lineTo(cx + Math.cos(phA)*(rSpec+40), cy + Math.sin(phA)*(rSpec+40));
+        ctx.stroke();
+        ctx.fillStyle = pal.now;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(phA)*rWave, cy + Math.sin(phA)*rWave, 4, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // inner ring — baseline
+      ctx.strokeStyle = rgba(pal.past, 0.15);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rInner, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, rWave, 0, Math.PI*2);
+      ctx.stroke();
+
+      // center orb with track title
+      const lvl = Audio.level || 0;
+      const orbR = rInner * 0.75;
+      const og = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbR);
+      og.addColorStop(0, rgba(pal.now, 0.25 + lvl*0.5));
+      og.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = og;
+      ctx.beginPath(); ctx.arc(cx, cy, orbR, 0, Math.PI*2); ctx.fill();
+
+      const curTrack = Audio.playlist[Audio.trackIdx] || { name: "melody" };
+      ctx.fillStyle = rgba(pal.past, 0.85);
+      ctx.font = "italic 16px 'Fraunces', serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(curTrack.name, cx, cy - 8);
+      ctx.fillStyle = rgba(pal.past, 0.5);
+      ctx.font = "9px 'JetBrains Mono', monospace";
+      const dur = Audio.buffer ? Audio.buffer.duration.toFixed(1) + "s" : "—";
+      ctx.fillText("♪ " + dur, cx, cy + 12);
+
+      // ---- Beat-hits: pulses fire inward from rim toward center with trails ----
+      for (let i=0; i<this.beatHits.length; i++){
+        const b = this.beatHits[i];
+        const age = (this.t - b.bornAt) / b.life;
+        // assign stable angle per hit
+        if (b.angle === undefined){
+          b.angle = Math.random() * Math.PI*2;
+        }
+        const rStart = rSpec + 50;
+        const rEnd = rInner + 10;
+        const r = rStart + (rEnd - rStart) * age;
+        const x = cx + Math.cos(b.angle) * r;
+        const y = cy + Math.sin(b.angle) * r;
+        b._x = x; b._y = y;
+        const alpha = 1 - age;
+        const col = b.h.ghost ? pal.ghost : b.h.future ? pal.future : pal.now;
+
+        // trail — line from birth position to current
+        const xStart = cx + Math.cos(b.angle) * rStart;
+        const yStart = cy + Math.sin(b.angle) * rStart;
+        const trailGrd = ctx.createLinearGradient(xStart, yStart, x, y);
+        trailGrd.addColorStop(0, rgba(col, 0));
+        trailGrd.addColorStop(1, rgba(col, 0.6 * alpha));
+        ctx.strokeStyle = trailGrd;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(xStart, yStart); ctx.lineTo(x, y);
+        ctx.stroke();
+
+        // head
+        const rr = 2 + (1-age)*5;
+        ctx.fillStyle = rgba(col, 0.25 * alpha);
+        ctx.beginPath(); ctx.arc(x, y, rr*3, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = rgba(col, 0.95 * alpha);
+        ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI*2); ctx.fill();
+
+        // label for fresh hits
+        if (age < 0.4){
+          const labelX = x + Math.cos(b.angle) * 14;
+          const labelY = y + Math.sin(b.angle) * 14;
+          ctx.fillStyle = rgba(pal.past, (1-age*2.2) * 0.9);
+          ctx.font = "italic 11px 'Fraunces', serif";
+          ctx.textAlign = (Math.cos(b.angle) > 0) ? "left" : "right";
+          ctx.textBaseline = "middle";
+          const name = (b.h.a.length > 26 ? b.h.a.slice(0,24)+"…" : b.h.a);
+          ctx.fillText(name, labelX + Math.cos(b.angle)*4, labelY);
+          ctx.font = "8px 'JetBrains Mono', monospace";
+          ctx.fillStyle = rgba(pal.past, (1-age*2.2) * 0.55);
+          ctx.fillText(yearLabel(b.h.year) + " · " + b.h.domain, labelX + Math.cos(b.angle)*4, labelY + 12);
+        }
+
+        this.picks.push({ x, y, h: b.h });
+      }
+
+      // axis labels around rim
+      ctx.fillStyle = rgba(pal.past, 0.35);
+      ctx.font = "8px 'JetBrains Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("0:00", cx, cy - rSpec - 58);
+      ctx.fillText(Audio.buffer ? (Audio.buffer.duration*0.25).toFixed(1)+"s" : "—", cx + rSpec + 58, cy);
+      ctx.fillText(Audio.buffer ? (Audio.buffer.duration*0.5).toFixed(1)+"s" : "—", cx, cy + rSpec + 58);
+      ctx.fillText(Audio.buffer ? (Audio.buffer.duration*0.75).toFixed(1)+"s" : "—", cx - rSpec - 58, cy);
+
+      // ---- Band meters bottom-left ----
+      const bandY = H - 70;
+      ctx.fillStyle = rgba(pal.past, 0.5);
+      ctx.font = "9px 'JetBrains Mono', monospace";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("SPECTRUM BANDS", 40, bandY - 14);
+      const bands = [["LOW",  Audio.lowBand||0,  pal.past],
+                     ["MID",  Audio.midBand||0,  pal.now],
+                     ["HIGH", Audio.highBand||0, pal.future]];
+      for (let i=0; i<bands.length; i++){
+        const [lbl, v, col] = bands[i];
+        const bx = 40 + i * 90;
+        ctx.fillStyle = rgba(pal.past, 0.55);
+        ctx.fillText(lbl, bx, bandY);
+        ctx.strokeStyle = rgba(pal.past, 0.2);
+        ctx.strokeRect(bx + 32, bandY+2, 50, 5);
+        ctx.fillStyle = rgba(col, 0.9);
+        ctx.fillRect(bx + 32, bandY+2, 50 * v, 5);
+      }
+
+      // level bar bottom-right
+      const mX = W - 180, mY = H - 62, mW = 140, mH = 6;
+      ctx.fillStyle = rgba(pal.past, 0.5);
+      ctx.fillText("LEVEL", mX, mY - 14);
+      ctx.strokeStyle = rgba(pal.past, 0.2);
+      ctx.strokeRect(mX, mY, mW, mH);
+      ctx.fillStyle = rgba(pal.now, 0.9);
+      ctx.fillRect(mX, mY, mW * lvl, mH);
+    },
+  };
+
+
+
+  // ---------- LENS: UNDEFINED ----------
+  // Pairings the dataset never asserted.
+  // Dark field; handshakes flicker in; each is a random pair of two real handshakes
+  // drawn as a thread between them with a name synthesis. Hover holds; click burns in.
+  const Undefined = {
+    canvas:null, ctx:null, t:0, W:0, H:0,
+    candidates: [],   // active flickers
+    burned: [],       // click-persisted
+    hover: null,
+    picks: [],
+    _spawnRate: 0.9,  // per second
+    _lastSpawn: 0,
+    init(canvas){
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+      this.resize();
+      this._bind();
+      // precompute a pool of real handshakes for pairing
+      this.pool = [...D.anchors, ...D.self, ...D.procedural.filter(p=>p.weight>0.25)];
+    },
+    resize(){
+      const dpr = Math.min(window.devicePixelRatio||1, 2);
+      this.canvas.width = window.innerWidth*dpr;
+      this.canvas.height = window.innerHeight*dpr;
+      this.canvas.style.width = window.innerWidth+"px";
+      this.canvas.style.height = window.innerHeight+"px";
+      this.ctx.setTransform(dpr,0,0,dpr,0,0);
+      this.W = window.innerWidth;
+      this.H = window.innerHeight;
+    },
+    _spawn(){
+      if (!this.pool || this.pool.length < 2) return;
+      const a = this.pool[Math.floor(Math.random()*this.pool.length)];
+      let b = this.pool[Math.floor(Math.random()*this.pool.length)];
+      let tries = 0;
+      // avoid same-pair and same-domain sometimes to get more striking crosses
+      while ((b===a || (b.domain===a.domain && Math.random()<0.7)) && tries++<8){
+        b = this.pool[Math.floor(Math.random()*this.pool.length)];
+      }
+      // random positions on the field with bias toward center
+      const pad = 120;
+      const biasCenter = ()=> {
+        const r = Math.random();
+        return 0.5 + (r - 0.5) * 1.6; // skews toward 0.5
+      };
+      const x1 = pad + biasCenter() * (this.W - pad*2);
+      const y1 = 180 + biasCenter() * (this.H - 300);
+      const x2 = pad + biasCenter() * (this.W - pad*2);
+      const y2 = 180 + biasCenter() * (this.H - 300);
+      // future-leaning year: split between sources' years, or project forward
+      const yr = Math.random() < 0.6
+        ? D.NOW_YEAR + Math.floor(Math.random()*120)
+        : Math.floor((a.year + b.year)/2) + Math.floor((Math.random()-0.5)*200);
+      this.candidates.push({
+        a, b, x1, y1, x2, y2,
+        bornAt: this.t,
+        life: 6 + Math.random()*4,
+        year: yr,
+        phase: Math.random(),
+      });
+      // cap
+      if (this.candidates.length > 18) this.candidates.shift();
+    },
+    frame(dt){
+      if (!this.canvas.classList.contains("active")) return;
+      this.t += dt;
+      if (this.t - this._lastSpawn > 1/this._spawnRate && !this.hover){
+        this._spawn();
+        this._lastSpawn = this.t;
+      }
+      // decay
+      this.candidates = this.candidates.filter(c => this.t - c.bornAt < c.life);
+      this._draw();
+    },
+    _draw(){
+      const ctx = this.ctx;
+      const W = this.W, H = this.H;
+      const pal = Sphere.palettes[Sphere.state.palette];
+
+      // dark field — slow fade clear so threads leave trails
+      ctx.fillStyle = "rgba(10,11,14,0.22)";
+      ctx.fillRect(0,0,W,H);
+
+      // header
+      ctx.fillStyle = rgba(pal.past, 0.85);
+      ctx.font = "11px 'JetBrains Mono', monospace";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("06 · THE UNDEFINED — HANDSHAKES THAT HAVEN'T HAPPENED YET", 40, 36);
+      ctx.fillStyle = rgba(pal.past, 0.45);
+      ctx.font = "italic 11px 'Fraunces', serif";
+      ctx.fillText("these are not predictions. they are permissions.", 40, 58);
+
+      // drift dots (ambient starfield)
+      ctx.fillStyle = rgba(pal.past, 0.15);
+      for (let i=0; i<80; i++){
+        const seed = (i*9301 + 49297) % 233280;
+        const r = seed / 233280;
+        const x = ((r * W) + this.t*8*(i%3-1)) % W;
+        const y = 200 + ((r*7919)%1 * (H-320));
+        ctx.fillRect(x, y, 1, 1);
+      }
+
+      this.picks = [];
+      const drawThread = (c, alpha) => {
+        const color = pal.future;
+        // curve through a control point drifting in phase
+        const cx = (c.x1+c.x2)/2 + Math.sin(this.t*0.2 + c.phase*6) * 40;
+        const cy = (c.y1+c.y2)/2 + Math.cos(this.t*0.2 + c.phase*6) * 40;
+
+        // thread
+        ctx.strokeStyle = rgba(color, 0.35 * alpha);
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(c.x1, c.y1);
+        ctx.quadraticCurveTo(cx, cy, c.x2, c.y2);
+        ctx.stroke();
+
+        // traveling light
+        const tt = ((this.t*0.25 + c.phase) % 1);
+        const qx = (1-tt)*(1-tt)*c.x1 + 2*(1-tt)*tt*cx + tt*tt*c.x2;
+        const qy = (1-tt)*(1-tt)*c.y1 + 2*(1-tt)*tt*cy + tt*tt*c.y2;
+        ctx.fillStyle = rgba(color, 0.9 * alpha);
+        ctx.beginPath(); ctx.arc(qx, qy, 2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = rgba(color, 0.25 * alpha);
+        ctx.beginPath(); ctx.arc(qx, qy, 7, 0, Math.PI*2); ctx.fill();
+
+        // endpoints
+        for (const p of [[c.x1,c.y1,c.a], [c.x2,c.y2,c.b]]){
+          const [px,py,src] = p;
+          ctx.fillStyle = rgba(pal.past, 0.9*alpha);
+          ctx.beginPath(); ctx.arc(px, py, 2.6, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = rgba(pal.past, 0.2*alpha);
+          ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI*2); ctx.fill();
+          // name
+          ctx.fillStyle = rgba(pal.past, 0.85*alpha);
+          ctx.font = "italic 11px 'Fraunces', serif";
+          ctx.textAlign = px > W/2 ? "right" : "left";
+          ctx.textBaseline = "middle";
+          const off = px > W/2 ? -10 : 10;
+          const name = (src.a.length > 24 ? src.a.slice(0,22)+"…" : src.a);
+          ctx.fillText(name, px+off, py-10);
+          ctx.fillStyle = rgba(pal.past, 0.45*alpha);
+          ctx.font = "8px 'JetBrains Mono', monospace";
+          ctx.fillText(yearLabel(src.year) + " · " + src.domain, px+off, py+4);
+        }
+
+        // center caption — the imagined handshake
+        const label = c.a.a + " × " + c.b.a;
+        const trimmed = label.length > 56 ? label.slice(0,54)+"…" : label;
+        ctx.fillStyle = rgba(color, 0.9*alpha);
+        ctx.font = "italic 13px 'Fraunces', serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(trimmed, cx, cy - 14);
+        ctx.fillStyle = rgba(color, 0.55*alpha);
+        ctx.font = "9px 'JetBrains Mono', monospace";
+        ctx.fillText("~ " + yearLabel(c.year), cx, cy + 4);
+
+        // pickable region for hover — near the control point
+        this.picks.push({ x: cx, y: cy, c });
+      };
+
+      // burned-in (persistent, subtle)
+      for (const c of this.burned){
+        drawThread(c, 0.35);
+      }
+
+      // live candidates
+      for (const c of this.candidates){
+        const age = (this.t - c.bornAt) / c.life;
+        const fadeIn = Math.min(1, age / 0.12);
+        const fadeOut = age > 0.82 ? 1 - (age - 0.82) / 0.18 : 1;
+        let alpha = Math.min(fadeIn, fadeOut);
+        // held if hovered
+        if (this.hover && this.hover.c === c){
+          alpha = 1;
+          c.bornAt = this.t - c.life * 0.4; // reset to mid-life
+        }
+        drawThread(c, alpha);
+      }
+
+      // footer hint
+      ctx.fillStyle = rgba(pal.past, 0.4);
+      ctx.font = "italic 11px 'Fraunces', serif";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        this.burned.length
+          ? this.burned.length + " permission" + (this.burned.length===1?"":"s") + " burned into the lattice"
+          : "hover to hold a handshake · click to burn it in",
+        W/2, H - 50);
+    },
+    pickAt(mx, my){
+      let best=null, bd = 80*80;
+      for (const p of this.picks){
+        const dx=p.x-mx, dy=p.y-my;
+        const d2 = dx*dx+dy*dy;
+        if (d2<bd){ bd=d2; best=p; }
+      }
+      return best;
+    },
+    _bind(){
+      const c = this.canvas;
+      c.addEventListener("pointermove", (e)=>{
+        const p = this.pickAt(e.clientX, e.clientY);
+        this.hover = p;
+        c.style.cursor = p ? "pointer" : "crosshair";
+      });
+      c.addEventListener("pointerleave", ()=>{ this.hover = null; });
+      c.addEventListener("click", (e)=>{
+        const p = this.pickAt(e.clientX, e.clientY);
+        if (p){
+          // burn in: move from candidates to burned
+          this.burned.push(p.c);
+          this.candidates = this.candidates.filter(cc => cc !== p.c);
+          if (this.burned.length > 30) this.burned.shift();
+        }
+      });
+    },
+  };
+
+
+  // ---------- App ----------
+  // =======================================================================
+  //  PlaylistUI — HTML overlay for the Song lens
+  // =======================================================================
+  const PlaylistUI = {
+    init(){
+      this.panel   = document.getElementById("song-playlist");
+      this.listEl  = document.getElementById("sp-list");
+      this.countEl = document.getElementById("sp-count");
+      this.nowEl   = document.getElementById("sp-now");
+      this.searchEl= document.getElementById("sp-search");
+      this.rndBtn  = document.getElementById("sp-random");
+      this.query = "";
+      this.searchEl.addEventListener("input", ()=>{
+        this.query = this.searchEl.value.trim().toLowerCase();
+        this.render();
+      });
+      this.rndBtn.addEventListener("click", async ()=>{
+        const n = Audio.playlist.length;
+        if (!n) return;
+        let i;
+        do { i = Math.floor(Math.random()*n); } while (n>1 && i === Audio.trackIdx);
+        await Audio.selectTrack(i);
+        if (!Audio.on) Audio.setOn(true);
+        this.refreshActive();
+        this.scrollActiveIntoView();
+      });
+      this.render();
+      // poll to keep active + now label in sync (cheap)
+      setInterval(()=>{
+        if (!document.body.classList.contains("lens-song")) return;
+        this.refreshActive();
+      }, 500);
+    },
+    _filtered(){
+      if (!this.query) return Audio.playlist.map((t,i)=>({t,i}));
+      return Audio.playlist
+        .map((t,i)=>({t,i}))
+        .filter(({t}) => t.name.toLowerCase().includes(this.query));
+    },
+    render(){
+      if (!this.listEl) return;
+      const rows = this._filtered();
+      this.countEl.textContent =
+        this.query
+          ? rows.length + " / " + Audio.playlist.length
+          : Audio.playlist.length + " tracks";
+      const frag = document.createDocumentFragment();
+      rows.forEach(({t,i})=>{
+        const row = document.createElement("div");
+        row.className = "sp-row" + (i === Audio.trackIdx ? " active" : "");
+        row.dataset.idx = i;
+        // split "xi · dolibika steps" -> num + rest
+        const parts = t.name.split(/\s·\s(.+)/);
+        const num = parts[0] || "";
+        const rest = parts[1] || t.name;
+        row.innerHTML =
+          '<span class="sp-num">'+ num +'</span>' +
+          '<span class="sp-label">'+ rest +'</span>';
+        row.addEventListener("click", async ()=>{
+          await Audio.selectTrack(i);
+          if (!Audio.on) Audio.setOn(true);
+          this.refreshActive();
+        });
+        frag.appendChild(row);
+      });
+      this.listEl.innerHTML = "";
+      this.listEl.appendChild(frag);
+      this.refreshActive();
+    },
+    refreshActive(){
+      if (!this.listEl) return;
+      const cur = Audio.playlist[Audio.trackIdx];
+      if (this.nowEl) this.nowEl.textContent = cur
+        ? (Audio.on ? "▸ " : "❚❚ ") + (cur.name.split(/\s·\s/)[1] || cur.name)
+        : "—";
+      this.listEl.querySelectorAll(".sp-row").forEach(row=>{
+        row.classList.toggle("active", +row.dataset.idx === Audio.trackIdx);
+      });
+    },
+    scrollActiveIntoView(){
+      const row = this.listEl.querySelector(".sp-row.active");
+      if (!row) return;
+      const list = this.listEl;
+      const rt = row.offsetTop, rh = row.offsetHeight;
+      const lt = list.scrollTop, lh = list.clientHeight;
+      if (rt < lt) list.scrollTop = rt - 8;
+      else if (rt + rh > lt + lh) list.scrollTop = rt + rh - lh + 8;
+    },
+  };
+
+  const App = window.LatticeApp = {
+    init(){
+      Sphere.init(els.sphere, els.stars);
+      Chord.init(document.getElementById("chord"));
+      River.init(document.getElementById("river"));
+      Rhyme.init(document.getElementById("rhyme"));
+      Song.init(document.getElementById("song"));
+      Undefined.init(document.getElementById("undefined-lens"));
+      PlaylistUI.init();
+      this.lens = "sphere";
+      document.body.classList.add("lens-sphere");
+      window.addEventListener("resize", ()=>{ Chord.resize(); River.resize(); Rhyme.resize(); Song.resize(); Undefined.resize(); });
+
+      // apply defaults from TWEAK_DEFAULTS
+      const T = window.TWEAK_DEFAULTS;
+      Sphere.state.autoYaw = T.rotationSpeed;
+      Sphere.state.pulseDensity = T.pulseDensity;
+      Sphere.state.futureShimmer = T.futureShimmer;
+      Sphere.state.motion = T.motion;
+      Sphere.state.palette = T.palette;
+      Sphere.state.showGhosts = T.ghostsOn;
+
+      els.tRot.value = T.rotationSpeed;
+      els.vRot.textContent = T.rotationSpeed.toFixed(3);
+      els.tDensity.value = T.pulseDensity;
+      els.vDensity.textContent = T.pulseDensity.toFixed(1) + "×";
+      els.tShimmer.value = T.futureShimmer;
+      els.vShimmer.textContent = T.futureShimmer.toFixed(2);
+
+      this._applyChips(els.motionChips, "motion", T.motion);
+      this._applyChips(els.palChips, "pal", T.palette);
+      els.btnGhosts.classList.toggle("on", !!T.ghostsOn);
+      els.btnSound.classList.toggle("on", !!T.soundOn);
+
+      this._bindUI();
+      this._setupEditMode();
+      this.updateCounts();
+      this._clockTick();
+      setInterval(()=>this._clockTick(), 1000);
+
+      // start rAF
+      let last = performance.now();
+      const loop = (now)=>{
+        const dt = Math.min(0.05, (now - last)/1000);
+        last = now;
+        Audio.tick();
+        // route frame based on active lens
+        const lens = App.lens || "sphere";
+        if (lens === "sphere") Sphere.frame(dt);
+        else if (lens === "chord") Chord.frame(dt);
+        else if (lens === "river") River.frame(dt);
+        else if (lens === "rhyme") Rhyme.frame(dt);
+        else if (lens === "song")  Song.frame(dt);
+        else if (lens === "undefined") Undefined.frame(dt);
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+
+      // Veil
+      els.enter.addEventListener("click", ()=>{
+        els.veil.classList.add("hidden");
+        setTimeout(()=>els.veil.remove(), 1400);
+        if (T.soundOn) Audio.setOn(true);
+      });
+      // auto-enter after 8s if idle
+      setTimeout(()=>{
+        if (els.veil && !els.veil.classList.contains("hidden")){
+          els.veil.classList.add("hidden");
+          setTimeout(()=>els.veil && els.veil.remove(), 1400);
+        }
+      }, 9000);
+
+      // caption fade
+      setTimeout(()=>{ els.caption.style.transition = "opacity 1.2s"; els.caption.style.opacity = "0"; }, 8000);
+    },
+
+    _applyChips(nodeList, attr, val){
+      nodeList.forEach(c => c.classList.toggle("on", c.dataset[attr] === val));
+    },
+
+    _bindUI(){
+      // lens switcher
+      document.querySelectorAll("#lens-switch button").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const lens = btn.dataset.lens;
+          this.switchLens(lens);
+        });
+      });
+
+      // zoom buttons
+      els.zoomButtons.forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const z = btn.dataset.zoom;
+          Sphere.setZoom(z);
+          this.syncZoomButtons();
+        });
+      });
+
+      // ghosts toggle
+      els.btnGhosts.addEventListener("click", ()=>{
+        const on = !els.btnGhosts.classList.contains("on");
+        els.btnGhosts.classList.toggle("on", on);
+        Sphere.setGhosts(on);
+        this._persist({ ghostsOn: on });
+      });
+
+      // sound toggle
+      els.btnSound.addEventListener("click", ()=>{
+        const on = !els.btnSound.classList.contains("on");
+        els.btnSound.classList.toggle("on", on);
+        Audio.setOn(on);
+        this._persist({ soundOn: on });
+      });
+
+      // tweaks toggle
+      els.btnTweaks.addEventListener("click", ()=>{
+        const on = !els.tweaks.classList.contains("open");
+        els.tweaks.classList.toggle("open", on);
+        els.btnTweaks.classList.toggle("on", on);
+      });
+
+      // rotation speed
+      els.tRot.addEventListener("input", ()=>{
+        const v = parseFloat(els.tRot.value);
+        Sphere.state.autoYaw = v;
+        els.vRot.textContent = v.toFixed(3);
+        this._persist({ rotationSpeed: v });
+      });
+      els.tDensity.addEventListener("input", ()=>{
+        const v = parseFloat(els.tDensity.value);
+        Sphere.state.pulseDensity = v;
+        els.vDensity.textContent = v.toFixed(1) + "×";
+        this._persist({ pulseDensity: v });
+        this.updateCounts();
+      });
+      els.tShimmer.addEventListener("input", ()=>{
+        const v = parseFloat(els.tShimmer.value);
+        Sphere.state.futureShimmer = v;
+        els.vShimmer.textContent = v.toFixed(2);
+        this._persist({ futureShimmer: v });
+      });
+
+      els.motionChips.forEach(c=>{
+        c.addEventListener("click", ()=>{
+          const v = c.dataset.motion;
+          this._applyChips(els.motionChips, "motion", v);
+          Sphere.setMotion(v);
+          this._persist({ motion: v });
+        });
+      });
+      els.palChips.forEach(c=>{
+        c.addEventListener("click", ()=>{
+          const v = c.dataset.pal;
+          this._applyChips(els.palChips, "pal", v);
+          Sphere.setPalette(v);
+          this._persist({ palette: v });
+        });
+      });
+
+      // close intimate
+      els.closeIntimate.addEventListener("click", ()=>{
+        els.intimate.classList.remove("open");
+        Sphere.state.selected = null;
+      });
+
+      // keyboard
+      window.addEventListener("keydown", (e)=>{
+        if (e.key === "Escape") {
+          els.intimate.classList.remove("open");
+          Sphere.state.selected = null;
+        }
+        if (e.key === "1") { Sphere.setZoom("cosmic"); this.syncZoomButtons(); }
+        if (e.key === "2") { Sphere.setZoom("regional"); this.syncZoomButtons(); }
+        if (e.key === "3") { Sphere.setZoom("intimate"); this.syncZoomButtons(); }
+      });
+    },
+
+    switchLens(lens){
+      if (this.lens === lens) return;
+      this.lens = lens;
+      document.body.classList.remove("lens-sphere","lens-chord","lens-river","lens-rhyme","lens-song","lens-undefined");
+      document.body.classList.add("lens-" + lens);
+      // canvas active
+      document.getElementById("sphere").classList.toggle("active", lens==="sphere");
+      document.getElementById("chord").classList.toggle("active", lens==="chord");
+      document.getElementById("river").classList.toggle("active", lens==="river");
+      document.getElementById("rhyme").classList.toggle("active", lens==="rhyme");
+      document.getElementById("song").classList.toggle("active", lens==="song");
+      document.getElementById("undefined-lens").classList.toggle("active", lens==="undefined");
+      // button active
+      document.querySelectorAll("#lens-switch button").forEach(b=>{
+        b.classList.toggle("active", b.dataset.lens === lens);
+      });
+      // if switching to song, try to start the melody
+      if (lens === "song" && !Audio.ctx){ Audio.init().then(()=>{ if (window.TWEAK_DEFAULTS.soundOn) Audio.setOn(true); }); }
+      if (lens === "song"){ setTimeout(()=> PlaylistUI.scrollActiveIntoView(), 50); }
+    },
+
+    syncZoomButtons(){      els.zoomButtons.forEach(b=>{
+        b.classList.toggle("active", b.dataset.zoom === Sphere.state.zoom);
+      });
+    },
+
+    updateTooltip(h, x, y){
+      const t = els.tip;
+      if (!h){ t.classList.remove("show"); return; }
+      t.classList.remove("future","ghost");
+      if (h.ghost) t.classList.add("ghost");
+      else if (h.future) t.classList.add("future");
+
+      const yr = h.year < 0 ? Math.abs(h.year) + " BCE" : h.year + " CE";
+      const type = h.ghost ? "near-miss" : (h.future ? "probable" : "observed");
+      const names = h.ghost
+        ? "<i>" + h.a + " × " + h.b + "</i>"
+        : h.a + " × " + h.b;
+      t.innerHTML = '<div class="names">' + names + '</div><div class="when">' + type + " · " + yr + " · " + (D.DOMAINS.find(d=>d.key===h.domain)?.label.toLowerCase() || "") + "</div>";
+      t.style.left = x + "px";
+      t.style.top = y + "px";
+      t.classList.add("show");
+    },
+
+    selectHandshake(h){
+      Sphere.state.selected = h;
+      this._populateIntimate(h);
+      els.intimate.classList.add("open");
+      Audio.ping(h.future ? 380 : 220, 0.08);
+    },
+
+    _populateIntimate(h){
+      const yr = h.year < 0 ? Math.abs(h.year) + " BCE" : h.year + " CE";
+      const idx = "HANDSHAKE " + String(h.id).padStart(5,"0");
+      els.intIdx.textContent = idx + (h.ghost ? " · NEAR-MISS" : (h.future ? " · PROBABILISTIC" : (h.self ? " · SELF" : " · OBSERVED")));
+
+      // title
+      const a = h.a, b = h.b;
+      els.intTitle.innerHTML = a + ' <em>×</em> ' + b;
+
+      // meta line
+      const dom = D.DOMAINS.find(d=>d.key===h.domain)?.label || "";
+      els.intMeta.innerHTML =
+        '<span>' + yr + '</span>' +
+        '<span>' + dom.toUpperCase() + '</span>' +
+        '<span>LAT ' + h.lat.toFixed(1) + '°</span>' +
+        '<span>LON ' + ((h.lon%360+360)%360).toFixed(1) + '°</span>' +
+        '<span>WEIGHT ' + (h.weight||0).toFixed(2) + '</span>';
+
+      // frames
+      const frameList = [
+        ["Transactional", "What passed between them?"],
+        ["Relational", "How did the bond shift?"],
+        ["Narrative", "Where does this sit in the story?"],
+        ["Systemic", "What does it say about the lattice?"],
+        ["Emotional", "What did it feel like?"],
+      ];
+
+      let html = "";
+      if (h.note){
+        html += '<div class="frame"><h3>Observed</h3><p>' + this._escape(h.note) + '</p></div>';
+      }
+      if (h.frames){
+        for (const [key, label] of frameList){
+          const k = key.toLowerCase();
+          const text = h.frames[k];
+          if (!text) continue;
+          html += '<div class="frame"><h3>' + key + ' — ' + label + '</h3><p>' + this._escape(text) + '</p></div>';
+        }
+      } else if (!h.ghost){
+        // procedural — generate plausible frames
+        html += this._proceduralFrames(h);
+      }
+
+      if (h.ghost){
+        html += '<div class="frame"><h3>Counterfactual</h3><p>A handshake that did not happen. The lattice holds a hollow where it would have been. <em>Every near-miss has a shape; this is one of them.</em></p></div>';
+      }
+      els.intFrames.innerHTML = html;
+    },
+
+    _proceduralFrames(h){
+      // light procedural commentary for un-annotated pulses
+      const yr = h.year < 0 ? Math.abs(h.year) + " BCE" : h.year + " CE";
+      const dom = D.DOMAINS.find(d=>d.key===h.domain)?.label.toLowerCase() || "contact";
+      const futureLine = h.future
+        ? "A handshake that has not yet happened — but that the lattice considers probable."
+        : "A handshake that happened, briefly, in " + yr + ".";
+      const weight = h.weight < 0.25 ? "small" : h.weight < 0.4 ? "modest" : "load-bearing";
+      return '' +
+        '<div class="frame"><h3>Observed</h3><p>' + futureLine + " Category: <em>" + dom + "</em>.</p></div>" +
+        '<div class="frame"><h3>Systemic</h3><p>One of millions like it this century. Weight: <em>' + weight + '</em>. Alone, unremarkable. Together, the shape of an age.</p></div>' +
+        '<div class="frame"><h3>Emotional</h3><p>Unrecorded. The people who lived it would not have called it a handshake. They would have called it <em>Tuesday</em>.</p></div>';
+    },
+
+    _escape(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); },
+
+    updateCounts(){
+      const total = Math.round(D.procedural.length * Math.min(1, Sphere.state.pulseDensity)) + D.anchors.length + D.self.length;
+      els.pulseCount.textContent = total.toLocaleString();
+      els.ghostCount.textContent = D.ghosts.length.toLocaleString();
+      // density badge
+      const d = Sphere.state.pulseDensity;
+      els.density.textContent = d < 0.5 ? "sparse" : d < 1.2 ? "nominal" : d < 2 ? "dense" : "overgrown";
+    },
+
+    _clockTick(){
+      const now = new Date();
+      const parts = now.toISOString().slice(0,19).replace("T", " · ");
+      els.nowclock.textContent = parts + " UTC";
+    },
+
+    // ---------- Tweaks host integration ----------
+    _setupEditMode(){
+      window.addEventListener("message", (ev)=>{
+        const m = ev.data;
+        if (!m || typeof m !== "object") return;
+        if (m.type === "__activate_edit_mode") {
+          els.tweaks.classList.add("open");
+          els.btnTweaks.classList.add("on");
+        }
+        if (m.type === "__deactivate_edit_mode") {
+          els.tweaks.classList.remove("open");
+          els.btnTweaks.classList.remove("on");
+        }
+      });
+      // announce
+      try { window.parent.postMessage({type:"__edit_mode_available"}, "*"); } catch(e){}
+    },
+    _persist(edits){
+      try { window.parent.postMessage({type:"__edit_mode_set_keys", edits}, "*"); } catch(e){}
+    },
+  };
+
+  // go
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ()=>App.init());
+  else App.init();
+})();
+
+</script>
+
+</body>
+</html>
